@@ -5,7 +5,7 @@
 ![KWin Script](https://img.shields.io/badge/KWin-script-orange)
 ![GitHub stars](https://img.shields.io/github/stars/mtriam/KLeftHandTiler?style=social)
 
-**Advanced window tiling script for KWin (KDE Plasma 6+)**
+**Window tiling script for KWin (KDE Plasma 6+)**
 
 Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 **drag-to-reorder windows**, and **smart auto-retile logic**.
