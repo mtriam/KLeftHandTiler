@@ -63,26 +63,30 @@ Optional automatic layout refresh when:
 
 Auto-retile modes:
 
-| Mode       | Behavior                        |
-| ---------- | ------------------------------- |
-| OFF        | never retile automatically      |
-| Tiled only | skip when windows are maximized |
-| Always     | force retile                    |
+| Mode       | Behavior                                         |
+| ---------- | ------------------------------------------------ |
+| OFF        | never retile automatically                       |
+| Tiled only | skip retile if at least one window is maximized  |
+| Always     | force retile                                     |
 
 ---
 
 ### 📐 Ratio presets
 
-Cycle presets with a shortcut:
+Cycle layout ratio presets using the shortcut **Ctrl + Shift + F1** (by default).  
+
+These numbers define the **size of the main window relative to the other windows** in both **width and height**:
 
 ```
-1.5 : 1.5
-2   : 2
-3   : 3
+1.5 : 1 
+2   : 1
+3   : 1
 1   : 1
 ```
 
----
+Use this to quickly adjust the layout balance between the main window and side stack.
+
+
 
 ### 🧱 Flexible first row layout
 
@@ -92,18 +96,7 @@ Configurable main panel behavior:
 • full width main row
 • automatic layout
 
----
 
-### ⌨ Smart shortcut behavior
-
-Supports **double-tap actions**.
-
-Examples:
-
-• double press → minimize
-• double press → fullscreen toggle
-
----
 
 ### 🚫 Window ignore system
 
@@ -143,11 +136,11 @@ can be automatically minimized during tiling.
 
 | Shortcut               | Action                                              |
 | ---------------------- | --------------------------------------------------- |
-| **Ctrl + Shift + →**   | Smart Tile / Cycle Layout / Double-tap Maximize All |
+| **Ctrl + Shift + `**   | Smart Tile / Cycle Layout / Double-tap Maximize All |
 | **Ctrl + Shift + F1**  | Cycle ratio presets                                 |
-| **Shift + Ctrl + Esc** | Rotate windows clockwise                            |
+| **Ctrl + Shift + Esc** | Rotate windows clockwise                            |
 | **Ctrl + Esc**         | Cycle to next visible window                        |
-| **Ctrl + →**           | Toggle maximize / double-tap → minimize             |
+| **Ctrl + `**           | Toggle maximize / double-tap → minimize             |
 | **Ctrl + CapsLock**    | Double press → toggle fullscreen                    |
 | **Ctrl + Shift + 1**   | Restore last minimized window from stack            |
 | **Ctrl + Shift + F2**  | Auto-retile: OFF                                    |
