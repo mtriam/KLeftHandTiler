@@ -39,18 +39,6 @@ Each workspace can therefore have a completely different layout.
 
 ---
 
-### 🖱 Drag-to-reorder
-
-Drag a tiled window close to another one:
-
-```
-window → drop near target → layout order updates
-```
-
-No manual layout editing required.
-
----
-
 ### ⚡ Smart auto-retile triggers
 
 Optional automatic layout refresh when:
@@ -107,7 +95,17 @@ Two independent ignore lists:
 
 Rules are based on **keywords in window titles**.
 
----
+
+### 🖱 Drag-to-reorder
+
+Drag a tiled window close to another one:
+
+```
+window → drop near target → layout order updates
+```
+
+No manual layout editing required.
+
 
 ### 🎛 Visual tuning
 
@@ -116,7 +114,6 @@ Adjustable:
 • window gaps
 • screen edge margins
 
----
 
 ### 📄 Smart dialog handling
 
@@ -134,19 +131,30 @@ can be automatically minimized during tiling.
 
 # ⌨ Default shortcuts
 
-| Shortcut               | Action                                              |
-| ---------------------- | --------------------------------------------------- |
-| **Ctrl + Shift + `**   | Smart Tile / Cycle Layout / Double-tap Maximize All |
-| **Ctrl + Shift + F1**  | Cycle ratio presets                                 |
-| **Ctrl + Shift + Esc** | Rotate windows clockwise                            |
-| **Ctrl + Esc**         | Cycle to next visible window                        |
-| **Ctrl + `**           | Toggle maximize / double-tap → minimize             |
-| **Ctrl + CapsLock**    | Double press → toggle fullscreen                    |
-| **Ctrl + Shift + 1**   | Restore last minimized window from stack            |
-| **Ctrl + Shift + F2**  | Auto-retile: OFF                                    |
-| **Ctrl + Shift + F3**  | Auto-retile: Tiled only                             |
-| **Ctrl + Shift + F4**  | Auto-retile: Always                                 |
+## 📐 Tiling
 
+| Shortcut              | Action                                                |
+|-----------------------|-------------------------------------------------------|
+| **Ctrl + Shift + `**  | Smart Tile / Cycle layout / double-tap → maximize all |
+| **Ctrl + Shift + F1** | Cycle ratio presets                                   |
+| **Ctrl + Shift + Esc**| Rotate windows                                        |
+
+## 🪟 Window control
+
+| Shortcut             | Action                                   |
+|----------------------|------------------------------------------|
+| **Ctrl + `**         | Toggle maximize / double-tap → minimize  |
+| **Ctrl + CapsLock**  | Double-tap → toggle fullscreen           |
+| **Ctrl + Esc**       | Cycle to next visible window             |
+| **Ctrl + Shift + 1** | Restore last minimized window from stack |
+
+## 🔁 Auto-retile modes
+
+| Shortcut             | Action                                                      |
+|----------------------|-------------------------------------------------------------|
+| **Ctrl + Shift + F2**| Auto-retile: OFF                                            |
+| **Ctrl + Shift + F3**| Auto-retile: Tiled only (skip if a window is maximized); Default|
+| **Ctrl + Shift + F4**| Auto-retile: Always                                         |
 Shortcuts can be reassigned in:
 
 ```
@@ -198,6 +206,24 @@ chmod +x KLeftHandTiler.sh
 
 ---
 
+## 🗑 Uninstall
+
+You can remove the script either using the installer script or from KDE settings.
+
+#### Using the script
+
+```
+./KLeftHandTiler.sh uninstall
+```
+
+#### From KDE settings
+
+1. Open **System Settings → Window Management → KWin Scripts**.
+2. Disable **KLeftHandTiler**.
+3. Click **Remove** to uninstall the script.
+
+---
+
 # 🛠 Management commands
 
 The installer script can manage the installation:
@@ -209,36 +235,6 @@ The installer script can manage the installation:
 ./KLeftHandTiler.sh remove
 ./KLeftHandTiler.sh unload
 ```
-
----
-
-# 🧯 Troubleshooting
-
-### Layout doesn't update
-
-Disable and enable the script again in **KWin Scripts**.
-
----
-
-### Windows not tiling
-
-Check:
-
-• ignore lists
-• transient window settings
-• auto-retile mode
-
----
-
-### Wrong monitor used
-
-Restart KWin:
-
-```
-kwin --replace &
-```
-
-or log out and log in again.
 
 ---
 
