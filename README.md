@@ -49,15 +49,39 @@ Optional automatic layout refresh when:
 • desktop changes
 • activity changes
 
-Auto-retile modes:
+### Auto-retile modes:
 
-| Mode       | Behavior                                         |
-| ---------- | ------------------------------------------------ |
-| OFF        | never retile automatically                       |
-| Tiled only | skip retile if at least one window is maximized  |
-| Always     | force retile                                     |
+| Mode       | Shortcut             | Behavior                                              |
+| ---------- | -------------------- | ----------------------------------------------------- |
+| OFF        | **Ctrl + Shift + F2**| never retile automatically                            |
+| Tiled only | **Ctrl + Shift + F3**| skip retile if at least one window is maximized (default) |
+| Always     | **Ctrl + Shift + F4**| force retile                                          |
 
 ---
+
+### 🧱 Adaptive layouts
+
+Multiple tiling layouts depending on the **number of open windows**.
+
+Cycle layouts with **Ctrl + Shift + `**
+
+Examples:
+
+• **2 windows**
+  - left / right
+  - top / bottom
+
+• **3 windows**
+  - main window + two stacked
+  - one on top + two below
+  - two on top + one below
+
+...
+
+Layouts automatically adapt to the number of windows while keeping a clear **main / secondary window structure**.
+
+---
+
 
 ### 📐 Ratio presets
 
@@ -66,25 +90,12 @@ Cycle layout ratio presets using the shortcut **Ctrl + Shift + F1** (by default)
 These numbers define the **size of the main window relative to the other windows** in both **width and height**:
 
 ```
-1.5 : 1 
-2   : 1
-3   : 1
-1   : 1
+1.5; 2; 3; 1
 ```
 
 Use this to quickly adjust the layout balance between the main window and side stack.
 
-
-
-### 🧱 Flexible first row layout
-
-Configurable main panel behavior:
-
-• main window + side stack
-• full width main row
-• automatic layout
-
-
+---
 
 ### 🚫 Window ignore system
 
@@ -133,11 +144,11 @@ can be automatically minimized during tiling.
 
 ## 📐 Tiling
 
-| Shortcut              | Action                                                |
-|-----------------------|-------------------------------------------------------|
-| **Ctrl + Shift + `**  | Smart Tile / Cycle layout / double-tap → maximize all |
-| **Ctrl + Shift + F1** | Cycle ratio presets                                   |
-| **Ctrl + Shift + Esc**| Rotate windows                                        |
+| Shortcut              | Action                                      |
+|-----------------------|---------------------------------------------|
+| **Ctrl + Shift + `**  | Smart Tile · Cycle layout (when tiled) · double-tap → maximize all |
+| **Ctrl + Shift + F1** | Cycle ratio presets                          |
+| **Ctrl + Shift + Esc**| Rotate windows                               |                                      |
 
 ## 🪟 Window control
 
@@ -153,8 +164,9 @@ can be automatically minimized during tiling.
 | Shortcut             | Action                                                      |
 |----------------------|-------------------------------------------------------------|
 | **Ctrl + Shift + F2**| Auto-retile: OFF                                            |
-| **Ctrl + Shift + F3**| Auto-retile: Tiled only (skip if a window is maximized); Default|
+| **Ctrl + Shift + F3**| Auto-retile: Tiled only (skip if a window is maximized)     |
 | **Ctrl + Shift + F4**| Auto-retile: Always                                         |
+
 Shortcuts can be reassigned in:
 
 ```
