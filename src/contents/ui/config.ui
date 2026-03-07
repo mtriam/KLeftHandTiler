@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Config</class>
+ <widget class="QWidget" name="Config">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>520</width>
+    <height>800</height>
+   </rect>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+   <!-- Warning label -->
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>After changing any setting, you must &lt;b&gt;disable and then re-enable&lt;/b&gt; the script&lt;br&gt;for the new values to take effect.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+     <property name="styleSheet">
+      <string>QLabel { color: #d32f2f; font-weight: bold; background: #ffebee; padding: 8px; border-radius: 4px; }</string>
+     </property>
+    </widget>
+   </item>
+   <!-- Auto-retile mode -->
+   <item>
+    <layout class="QFormLayout">
+     <item row="0" column="0">
+      <widget class="QLabel">
+       <property name="text">
+        <string>&lt;b&gt;Auto-retile mode on startup:&lt;/b&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="kcfg_autoRetileMode">
+       <item><property name="text"><string>Off (disabled)</string></property></item>
+       <item><property name="text"><string>Tiled only (skip if maximized)</string></property></item>
+       <item><property name="text"><string>Always (force retile)</string></property></item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="smallSpacer1">
+     <property name="orientation"><enum>Qt::Vertical</enum></property>
+     <property name="sizeType"><enum>QSizePolicy::Fixed</enum></property>
+     <property name="sizeHint" stdset="0"><size><width>20</width><height>12</height></size></property>
+    </spacer>
+   </item>
+   <!-- Auto-retile triggers -->
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>&lt;b&gt;Auto-retile triggers&lt;/b&gt;</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout">
+        <item row="0" column="0"><widget class="QLabel"><property name="text"><string>on new window:</string></property></widget></item>
+        <item row="0" column="1"><widget class="QCheckBox" name="kcfg_autoLayoutOnNewWindow"/></item>
+
+        <item row="1" column="0"><widget class="QLabel"><property name="text"><string>after closing window:</string></property></widget></item>
+        <item row="1" column="1"><widget class="QCheckBox" name="kcfg_autoLayoutOnWindowClose"/></item>
+
+        <item row="2" column="0"><widget class="QLabel"><property name="text"><string>after minimize:</string></property></widget></item>
+        <item row="2" column="1"><widget class="QCheckBox" name="kcfg_autoLayoutOnWindowMinimize"/></item>
+
+        <item row="3" column="0"><widget class="QLabel"><property name="text"><string>after restoring minimized window:</string></property></widget></item>
+        <item row="3" column="1"><widget class="QCheckBox" name="kcfg_autoLayoutOnWindowRestore"/></item>
+
+        <item row="4" column="0"><widget class="QLabel"><property name="text"><string>on desktop switch:</string></property></widget></item>
+        <item row="4" column="1"><widget class="QCheckBox" name="kcfg_autoLayoutOnDesktopChange"/></item>
+
+        <item row="5" column="0"><widget class="QLabel"><property name="text"><string>after switching activity:</string></property></widget></item>
+        <item row="5" column="1"><widget class="QCheckBox" name="kcfg_autoLayoutOnActivityChange"><property name="checked"><bool>true</bool></property></widget></item>
+
+        <item row="6" column="0"><widget class="QLabel"><property name="text"><string>ignore transient / modal windows (dialogs):</string></property></widget></item>
+        <item row="6" column="1"><widget class="QCheckBox" name="kcfg_ignoreTransientWindows"><property name="checked"><bool>true</bool></property></widget></item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="smallSpacer2">
+     <property name="orientation"><enum>Qt::Vertical</enum></property>
+     <property name="sizeType"><enum>QSizePolicy::Fixed</enum></property>
+     <property name="sizeHint" stdset="0"><size><width>20</width><height>12</height></size></property>
+    </spacer>
+   </item>
+   <!-- Tile on start -->
+   <item>
+    <layout class="QFormLayout">
+     <item row="0" column="0">
+      <widget class="QLabel"><property name="text"><string>&lt;b&gt;Tile on script start / login:&lt;/b&gt;</string></property></widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QCheckBox" name="kcfg_tileOnStart"/>
+     </item>
+    </layout>
+   </item>
+   <!-- Ignore by title words -->
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>&lt;b&gt;Ignore windows from tiling by title words&lt;/b&gt; (comma separated, no spaces after commas)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout">
+     <item><widget class="QLineEdit" name="kcfg_ignoreWordsTiling1"/></item>
+     <item><widget class="QLineEdit" name="kcfg_ignoreWordsTiling2"/></item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>&lt;b&gt;Ignore windows from cycling (Ctrl+Esc) by title words&lt;/b&gt; (comma separated)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout">
+     <item><widget class="QLineEdit" name="kcfg_ignoreWordsCycling1"/></item>
+     <item><widget class="QLineEdit" name="kcfg_ignoreWordsCycling2"/></item>
+    </layout>
+   </item>
+   <!-- Default ratio preset -->
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>&lt;b&gt;Default ratio preset for new desktops/screens&lt;/b&gt;</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout">
+     <item row="0" column="0">
+      <widget class="QLabel"><property name="text"><string>Default preset:</string></property></widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="kcfg_defaultPresetIndex">
+       <property name="currentIndex"><number>0</number></property>
+       <item><property name="text"><string>0 – 1.5 : 1.5</string></property></item>
+       <item><property name="text"><string>1 – 2.0 : 2.0</string></property></item>
+       <item><property name="text"><string>2 – 3.0 : 3.0</string></property></item>
+       <item><property name="text"><string>3 – 1.0 : 1.0</string></property></item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <!-- Layout appearance -->
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>&lt;b&gt;Layout appearance&lt;/b&gt;</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout">
+     <item row="0" column="0">
+      <widget class="QLabel"><property name="text"><string>Gap between windows:</string></property></widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QSpinBox" name="kcfg_gapBetweenWindows">
+       <property name="minimum"><number>0</number></property>
+       <property name="maximum"><number>64</number></property>
+       <property name="suffix"><string> px</string></property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel"><property name="text"><string>Margin from screen edges:</string></property></widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QSpinBox" name="kcfg_screenMargin">
+       <property name="minimum"><number>0</number></property>
+       <property name="maximum"><number>80</number></property>
+       <property name="suffix"><string> px</string></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <!-- Other settings -->
+   <item>
+    <widget class="QLabel">
+     <property name="text">
+      <string>&lt;b&gt;Other settings&lt;/b&gt;</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="formLayout_3">
+     <item row="0" column="0">
+      <widget class="QLabel"><property name="text"><string>Double-tap threshold:</string></property></widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QSpinBox" name="kcfg_doubleTapThresholdMs">
+       <property name="minimum"><number>150</number></property>
+       <property name="maximum"><number>800</number></property>
+       <property name="suffix"><string> ms</string></property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel"><property name="text"><string>Drag-reorder overlap threshold:</string></property></widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QDoubleSpinBox" name="kcfg_reorderSlotThreshold">
+       <property name="decimals"><number>2</number></property>
+       <property name="minimum"><double>0.1</double></property>
+       <property name="maximum"><double>0.8</double></property>
+       <property name="singleStep"><double>0.05</double></property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation"><enum>Qt::Vertical</enum></property>
+     <property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property>
+    </spacer>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

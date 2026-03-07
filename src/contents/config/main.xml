@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kcfg xmlns="http://www.kde.org/standards/kcfg/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
+    <kcfgfile name=""/>
+    <group name="">
+        <entry name="autoLayoutOnDesktopChange" type="Bool">
+            <label>Automatically retile after switching virtual desktop</label>
+            <default>false</default>
+        </entry>
+        <entry name="autoLayoutOnNewWindow" type="Bool">
+            <label>Automatically retile when new window appears on current desktop</label>
+            <default>true</default>
+        </entry>
+        <entry name="autoLayoutOnWindowClose" type="Bool">
+            <label>Automatically retile after closing a window on current desktop</label>
+            <default>true</default>
+        </entry>
+        <entry name="autoLayoutOnWindowMinimize" type="Bool">
+            <label>Automatically retile after minimizing a window on current desktop</label>
+            <default>true</default>
+        </entry>
+        <entry name="autoLayoutOnWindowRestore" type="Bool">
+            <label>Automatically retile when restoring a minimized window</label>
+            <default>true</default>
+        </entry>
+        <entry name="autoRetileMode" type="Int">
+            <label>Auto-retile mode on startup (0=off, 1=tiled only, 2=always)</label>
+            <default>1</default>
+            <min>0</min>
+            <max>2</max>
+        </entry>
+        <entry name="ignoreTransientWindows" type="Bool">
+            <label>Ignore transient/modal windows (dialogs)</label>
+            <default>true</default>
+        </entry>
+        <entry name="tileOnStart" type="Bool">
+            <label>Tile all windows on script start / login</label>
+            <default>false</default>
+        </entry>
+        <entry name="ignoreWordsTiling1" type="String">
+            <label>Words to ignore from tiling (comma separated) – set 1</label>
+            <default>print,find,replace,confirm,settings,preferences,properties</default>
+        </entry>
+        <entry name="ignoreWordsTiling2" type="String">
+            <label>Words to ignore from tiling (comma separated) – set 2</label>
+            <default>drukuj,znajdź,zamień,potwierdź,ustawienia,właściwości</default>
+        </entry>
+        <entry name="ignoreWordsCycling1" type="String">
+            <label>Words to ignore from cycling (Ctrl+Esc) (comma separated) – set 1</label>
+            <default></default>
+        </entry>
+        <entry name="ignoreWordsCycling2" type="String">
+            <label>Words to ignore from cycling (Ctrl+Esc) (comma separated) – set 2</label>
+            <default></default>
+        </entry>
+        <entry name="defaultPresetIndex" type="Int">
+            <label>Default ratio preset for new desktops/screens (0=1.5:1.5, 1=2.0:2.0, 2=3.0:3.0, 3=1.0:1.0)</label>
+            <default>0</default>
+            <min>0</min>
+            <max>3</max>
+        </entry>
+        <entry name="doubleTapThresholdMs" type="Int">
+            <label>Double-tap detection threshold (ms)</label>
+            <default>300</default>
+            <min>150</min>
+            <max>800</max>
+        </entry>
+        <entry name="reorderSlotThreshold" type="Double">
+            <label>Minimum overlap ratio to accept drag-reorder (0.0–1.0)</label>
+            <default>0.35</default>
+            <min>0.1</min>
+            <max>0.8</max>
+        </entry>
+        <entry name="gapBetweenWindows" type="Int">
+            <label>Gap between tiled windows (pixels)</label>
+            <default>4</default>
+            <min>0</min>
+            <max>64</max>
+        </entry>
+        <entry name="screenMargin" type="Int">
+            <label>Margin from screen edges (pixels)</label>
+            <default>4</default>
+            <min>0</min>
+            <max>80</max>
+        </entry>
+        <entry name="autoLayoutOnActivityChange" type="Bool">
+            <label>Automatically retile after switching activity</label>
+            <default>false</default>
+        </entry>
+    </group>
+</kcfg>
