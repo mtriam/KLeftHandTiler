@@ -25,15 +25,15 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 7. Switch desktop or activity → you return to the **previously saved, independent layout** for that context
 
 **Key actions:**
-- **Smart Tile / Cycle**  
+- Smart Tile / Cycle  
   **Ctrl + Shift + `**  → single press = tile or cycle layout, double-tap = maximize all windows  
-- **Drag-to-reorder**  
+- Drag-to-reorder  
   Grab window titlebar → drop near another tiled window → order updates  
-- **Cycle main ratio presets**  
+- Cycle main ratio presets  
   **Ctrl + Shift + F1** → 1.5:1 → 2:1 → 3:1 → 1:1 and back  
-- **Rotate windows (keep focus)**  
+- Rotate windows (keep focus)  
   **Ctrl + Shift + Esc** → clockwise rotation of tiled order  
-- **Switch to next visible window**  
+- Switch to next visible window  
   **Ctrl + Esc** → cycles focus to the next window among visible / tiled ones (sorted roughly by angle/position)
 
 For smoother tiling animations, install the recommended addon:  [kwin4_effect_geometry_change](https://github.com/peterfajdiga/kwin4_effect_geometry_change)
