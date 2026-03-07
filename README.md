@@ -12,16 +12,33 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 
 ---
 
-# 🎬 Preview
 
-![preview](docs/preview.gif)
+**Typical workflow overview:**
 
-Typical workflow:
+1. Open 2–5 windows  
+2. Press **Ctrl + Shift + `** → windows snap into an intelligent **main + secondary** layout (with configurable main window ratio)  
+3. Drag one window close to another → drop it → the **layout order updates automatically** (drag-to-reorder)  
+4. Press **Ctrl + Shift + `** again → cycles to the next sensible layout for the current number of windows  
+   (examples: main + two stacked | main + two side-by-side | three columns | main + 2×2 grid etc.)  
+5. Close or minimize a window → layout **automatically adjusts** (when auto-retile is enabled)  
+6. Press **Ctrl + Esc** → switch focus to the next visible window (in roughly spatial order)  
+7. Switch desktop or activity → you return to the **previously saved, independent layout** for that context
 
-• Tile windows with one shortcut
-• Drag a window near another → reorder layout
-• Switch desktops or activities → independent layouts
-• Smart auto-retile keeps layouts consistent
+**Key actions:**
+- **Smart Tile / Cycle**  
+  **Ctrl + Shift + `**  → single press = tile or cycle layout, double-tap = maximize all windows  
+- **Drag-to-reorder**  
+  Grab window titlebar → drop near another tiled window → order updates  
+- **Cycle main ratio presets**  
+  **Ctrl + Shift + F1** → 1.5:1 → 2:1 → 3:1 → 1:1 and back  
+- **Rotate windows (keep focus)**  
+  **Ctrl + Shift + Esc** → clockwise rotation of tiled order  
+- **Switch to next visible window**  
+  **Ctrl + Esc** → cycles focus to the next window among visible / tiled ones (sorted roughly by angle/position)
+
+For smoother tiling animations, install the recommended addon:  [kwin4_effect_geometry_change](https://github.com/peterfajdiga/kwin4_effect_geometry_change)
+
+
 
 ---
 
