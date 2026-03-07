@@ -11,6 +11,9 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 **drag-to-reorder windows**, and **smart auto-retile logic**.
 
 ---
+# 🎬 Preview
+
+![preview](docs/preview.gif)
 
 
 **Typical workflow overview:**
