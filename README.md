@@ -105,6 +105,8 @@ Layouts automatically adapt to the number of windows while keeping a clear **mai
 
 ### 📐 Ratio presets
 
+![preview](docs/preview_ratio.gif)
+
 Cycle layout ratio presets using the shortcut **Ctrl + Shift + F1** (by default).  
 
 These numbers define the **size of the main window relative to the other windows** in both **width and height**:
