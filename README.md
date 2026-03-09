@@ -13,7 +13,7 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 ---
 # 🎬 Preview
 
-![preview](docs/preview.gif)
+![preview](docs/preview3.gif)
 
 
 **Typical workflow overview:**
