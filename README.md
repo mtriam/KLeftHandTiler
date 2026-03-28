@@ -114,6 +114,8 @@ Cycle layouts:
 
 ### 📐 Ratio presets
 
+![preview](docs/preview_ratio.gif)
+
 Shortcut:
 
     Ctrl + Shift + F1
@@ -121,6 +123,8 @@ Shortcut:
 Presets:
 
     1.5 → 2 → 3 → 1
+
+Used for controlling the **main vs secondary window proportions**.
 
 ---
 
@@ -324,7 +328,7 @@ Open:
 
 ---
 
-### Ignore configuration
+### 🚫 Ignore configuration
 
 User-defined lists apply to:
 
