@@ -1,14 +1,14 @@
 {
     "KPlugin": {
         "Name": "KLeftHandTiler",
-        "Description": "Advanced window tiling optimized for left-hand shortcuts, per-desktop/per-screen state and drag-reorder",
+        "Description": "Advanced window tiling optimized for left-hand shortcuts",
         "Icon": "preferences-desktop-display",
         "Category": "Window Management",
         "Author": "triamond",
         "EnabledByDefault": true,
         "Id": "KLeftHandTiler",
         "License": "GPL",
-        "Version": "1.0"
+        "Version": "2.0"
     },
     "X-Plasma-API": "javascript",
     "X-Plasma-MainScript": "code/main.js",

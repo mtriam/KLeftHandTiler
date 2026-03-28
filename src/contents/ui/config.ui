@@ -108,7 +108,7 @@
    <item>
     <widget class="QLabel">
      <property name="text">
-      <string>&lt;b&gt;Ignore windows from tiling by title words&lt;/b&gt; (comma separated, no spaces after commas)</string>
+         <string>&lt;b&gt;Ignore windows from tiling&lt;/b&gt; (comma separated; matches title, resourceClass (WM_CLASS), and resourceName)</string>
      </property>
     </widget>
    </item>
@@ -121,7 +121,7 @@
    <item>
     <widget class="QLabel">
      <property name="text">
-      <string>&lt;b&gt;Ignore windows from cycling (Ctrl+Esc) by title words&lt;/b&gt; (comma separated)</string>
+      <string>&lt;b&gt;Ignore windows from cycling (Ctrl+Esc)&lt;/b&gt; (comma separated; matches title, resourceClass (WM_CLASS), and resourceName)</string>
      </property>
     </widget>
    </item>

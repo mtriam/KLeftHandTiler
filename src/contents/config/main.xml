@@ -38,7 +38,7 @@
         </entry>
         <entry name="ignoreWordsTiling1" type="String">
             <label>Words to ignore from tiling (comma separated) – set 1</label>
-            <default>print,find,replace,confirm,settings,preferences,properties</default>
+            <default>print,find,replace,confirm,settings,preferences,properties,org.kde.plasma-systemmonitor</default>
         </entry>
         <entry name="ignoreWordsTiling2" type="String">
             <label>Words to ignore from tiling (comma separated) – set 2</label>

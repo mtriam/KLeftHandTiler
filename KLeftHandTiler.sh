@@ -62,7 +62,7 @@ case "$1" in
     remove)
         rm -rf "$SCRIPT_DIR"
         qdbus6 org.kde.KWin /Scripting unloadScript "$SCRIPT_NAME"
-        qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.cleanUp
+    #    qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.cleanUp
         qdbus6 org.kde.KWin /KWin reconfigure
         exit 0
         ;;
