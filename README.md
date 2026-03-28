@@ -7,158 +7,148 @@
 
 **Window tiling script for KWin (KDE Plasma 6+)**
 
-Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
-**drag-to-reorder windows**, and **smart auto-retile logic**.
+Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,  
+**drag-to-reorder windows**, and a **constraint-aware layout engine with live resize**.
 
 ---
+
+# 🚀 What's new in v2.0
+
+- 🧠 New **model-based layout engine**
+- 🔄 **Live resize** (real-time window resizing)
+- 📐 **Constraint-aware tiling** (min sizes respected)
+- 🧩 Improved **left-main layout behavior**
+- ⚡ Better performance (layout caching + throttling)
+- ⌨️ New controls: **swap windows + grow/shrink**
+
+---
+
 # 🎬 Preview
 
 ![preview](docs/preview3.gif)
 
+---
 
-**Typical workflow overview:**
+## ✨ How it works
 
 1. Open 2–5 windows  
-2. Press **Ctrl + Shift + `** → windows snap into an intelligent **main + secondary** layout (with configurable main window ratio)  
-3. Drag one window close to another → drop it → the **layout order updates automatically** (drag-to-reorder)  
-4. Press **Ctrl + Shift + `** again → cycles to the next sensible layout for the current number of windows  
-   (examples: main + two stacked | main + two side-by-side | three columns | main + 2×2 grid etc.)  
-5. Close or minimize a window → layout **automatically adjusts** (when auto-retile is enabled)  
-6. Press **Ctrl + Esc** → switch focus to the next visible window (in roughly spatial order)  
-7. Switch desktop or activity → you return to the **previously saved, independent layout** for that context
-
-**Key actions:**
-- Smart Tile / Cycle  
-  **Ctrl + Shift + `**  → single press = tile or cycle layout, double-tap = maximize all windows  
-- Drag-to-reorder  
-  Grab window titlebar → drop near another tiled window → order updates  
-- Cycle main ratio presets  
-  **Ctrl + Shift + F1** → 1.5:1 → 2:1 → 3:1 → 1:1 and back  
-- Rotate windows (keep focus)  
-  **Ctrl + Shift + Esc** → clockwise rotation of tiled order  
-- Switch to next visible window  
-  **Ctrl + Esc** → cycles focus to the next window among visible / tiled ones (sorted roughly by angle/position)
-
-For smoother tiling animations, install the recommended addon:  [kwin4_effect_geometry_change](https://github.com/peterfajdiga/kwin4_effect_geometry_change)
-
-
+2. Press **Ctrl + Shift + `** → layout  
+3. Drag window → reorder  
+4. Resize window → **live layout update**  
+5. Cycle layouts → **Ctrl + Shift + `**  
+6. Close/minimize → auto adjust  
+7. Switch desktop/activity → layout restored  
 
 ---
 
 # ✨ Features
 
-### 🖥 Per-context layouts
+## 🧠 Model-based layout engine
 
-Layouts are stored independently for every combination of:
+Layout model:
+    rows + columns + ratios
 
-```
-activity + desktop + screen
-```
-
-Each workspace can therefore have a completely different layout.
-
----
-
-### ⚡ Smart auto-retile triggers
-
-Optional automatic layout refresh when:
-
-• new window opens
-• window closes
-• window minimizes / restores
-• desktop changes
-• activity changes
-
-### Auto-retile modes:
-
-| Mode       | Shortcut             | Behavior                                              |
-| ---------- | -------------------- | ----------------------------------------------------- |
-| OFF        | **Ctrl + Shift + F2**| never retile automatically                            |
-| Tiled only | **Ctrl + Shift + F3**| skip retile if at least one window is maximized (default) |
-| Always     | **Ctrl + Shift + F4**| force retile                                          |
+- stable layouts (no drift)
+- predictable resizing
+- precise proportions
 
 ---
 
-### 🧱 Adaptive layouts
+## 🔄 Live resize
 
-Multiple tiling layouts depending on the **number of open windows**.
+Resize:
+    drag edge → layout updates instantly
 
-Cycle layouts with **Ctrl + Shift + `**
+- affects only adjacent windows  
+- no global scaling  
+- respects constraints  
+
+---
+
+## 📐 Constraint-aware tiling
+
+- respects minimum window sizes  
+- prevents impossible layouts  
+- avoids gaps and overlaps  
+
+---
+
+## 🧩 Left-main layouts
+
+- main + stack/grid  
+- correct resizing between areas  
+- preserved proportions  
+
+---
+
+## ⚡ Smart auto-retile
+
+Triggers:
+- new window  
+- close  
+- minimize / restore  
+- desktop change  
+- activity change  
+
+---
+
+## 🔁 Auto-retile modes
+
+| Mode       | Shortcut           | Behavior                  |
+|------------|------------------|--------------------------|
+| OFF        | Ctrl+Shift+F2    | disabled                 |
+| Tiled only | Ctrl+Shift+F3    | skip if maximized        |
+| Always     | Ctrl+Shift+F4    | always retile            |
+
+---
+
+## 🧱 Adaptive layouts
+
+Cycle:
+    Ctrl + Shift + `
 
 Examples:
-
-• **2 windows**
-  - left / right
-  - top / bottom
-
-• **3 windows**
-  - main window + two stacked
-  - one on top + two below
-  - two on top + one below
-
-...
-
-Layouts automatically adapt to the number of windows while keeping a clear **main / secondary window structure**.
+- 2 → split  
+- 3 → main + stack  
+- more → grid  
 
 ---
 
-
-### 📐 Ratio presets
+## 📐 Ratio presets
 
 ![preview](docs/preview_ratio.gif)
 
-Cycle layout ratio presets using the shortcut **Ctrl + Shift + F1** (by default).  
+Shortcut:
+    Ctrl + Shift + F1
 
-These numbers define the **size of the main window relative to the other windows** in both **width and height**:
-
-```
-1.5; 2; 3; 1
-```
-
-Use this to quickly adjust the layout balance between the main window and side stack.
+Presets:
+    1.5 → 2 → 3 → 1
 
 ---
 
-### 🚫 Window ignore system
+## 🖱 Drag-to-reorder
 
-Two independent ignore lists:
+    drag → drop near → reorder
 
-• **tiling ignore list**
-• **window cycling ignore list**
+---
 
-Rules are based on **keywords in window titles**.
+## 🧲 Sticky edges
 
+Snap windows to layout boundaries during resize.
 
-### 🖱 Drag-to-reorder
+---
 
-Drag a tiled window close to another one:
+## 🎛 Visual tuning
 
-```
-window → drop near target → layout order updates
-```
+- gaps  
+- margins  
 
-No manual layout editing required.
+---
 
+## 🚫 Ignore system
 
-### 🎛 Visual tuning
-
-Adjustable:
-
-• window gaps
-• screen edge margins
-
-
-### 📄 Smart dialog handling
-
-Small transient windows such as:
-
-```
-settings dialogs
-print dialogs
-tool windows
-```
-
-can be automatically minimized during tiling.
+- tiling ignore  
+- cycling ignore  
 
 ---
 
@@ -166,139 +156,85 @@ can be automatically minimized during tiling.
 
 ## 📐 Tiling
 
-| Shortcut              | Action                                      |
-|-----------------------|---------------------------------------------|
-| **Ctrl + Shift + `**  | Smart Tile · Cycle layout (when tiled) · double-tap → maximize all |
-| **Ctrl + Shift + F1** | Cycle ratio presets                          |
-| **Ctrl + Shift + Esc**| Rotate windows                               |                                      |
+| Shortcut            | Action |
+|---------------------|--------|
+| Ctrl+Shift+`        | Tile / Cycle / double-tap → maximize |
+| Ctrl+Shift+F1       | Cycle ratio presets |
+| Ctrl+Shift+Esc      | Rotate windows |
+
+---
 
 ## 🪟 Window control
 
-| Shortcut             | Action                                   |
-|----------------------|------------------------------------------|
-| **Ctrl + `**         | Toggle maximize / double-tap → minimize  |
-| **Ctrl + CapsLock**  | Double-tap → toggle fullscreen           |
-| **Ctrl + Esc**       | Cycle to next visible window             |
-| **Ctrl + Shift + 1** | Restore last minimized window from stack |
-
-## 🔁 Auto-retile modes
-
-| Shortcut             | Action                                                      |
-|----------------------|-------------------------------------------------------------|
-| **Ctrl + Shift + F2**| Auto-retile: OFF                                            |
-| **Ctrl + Shift + F3**| Auto-retile: Tiled only (skip if a window is maximized)     |
-| **Ctrl + Shift + F4**| Auto-retile: Always                                         |
-
-Shortcuts can be reassigned in:
-
-```
-System Settings → Shortcuts → KWin Scripts
-```
+| Shortcut       | Action |
+|----------------|--------|
+| Ctrl+`         | Toggle maximize / double-tap → minimize |
+| Ctrl+CapsLock  | Double-tap → toggle fullscreen |
+| Ctrl+Esc       | Cycle visible windows |
+| Ctrl+Shift+1   | Restore last minimized window |
 
 ---
 
-# 📦 Installation (recommended)
+## 🔄 Layout manipulation (NEW)
 
-### Recommended (install from `.kwinscript`)
-
-1. Download the latest `.kwinscript` package from the repository.
-
-2. Open **System Settings → Window Management → KWin Scripts**.
-
-3. Click **Install from File…**
-
-4. Select the downloaded file:
-
-```
-KLeftHandTiler.kwinscript
-```
-
-5. Enable **KLeftHandTiler** in the scripts list.
-
-6. Apply the changes.
-
-The script will now be active.
-
-**Optional:** for smooth tiling animations, install [kwin4_effect_geometry_change](https://github.com/peterfajdiga/kwin4_effect_geometry_change).
-
-
-### Alternative (manual install)
-
-Clone the repository:
-
-```
-git clone https://github.com/mtriam/KLeftHandTiler.git
-cd KLeftHandTiler
-```
-
-Run installer:
-
-```
-chmod +x KLeftHandTiler.sh
-./KLeftHandTiler.sh install
-```
+| Shortcut                        | Action |
+|--------------------------------|--------|
+| Meta+Ctrl+Alt+Left             | Swap with left window |
+| Meta+Ctrl+Alt+Right            | Swap with right window |
+| Meta+Ctrl+Alt+Up               | Swap with top window |
+| Meta+Ctrl+Alt+Down             | Swap with bottom window |
+| Meta+Alt+X                     | Grow active window |
+| Meta+Alt+Z                     | Shrink active window |
 
 ---
 
-## 🗑 Uninstall
+## 🔁 Auto-retile
 
-You can remove the script either using the installer script or from KDE settings.
-
-#### Using the script
-
-```
-./KLeftHandTiler.sh uninstall
-```
-
-#### From KDE settings
-
-1. Open **System Settings → Window Management → KWin Scripts**.
-2. Disable **KLeftHandTiler**.
-3. Click **Remove** to uninstall the script.
+| Shortcut        | Action |
+|-----------------|--------|
+| Ctrl+Shift+F2   | OFF |
+| Ctrl+Shift+F3   | Tiled only |
+| Ctrl+Shift+F4   | Always |
 
 ---
 
-# 🛠 Management commands
+# 📦 Installation
 
-The installer script can manage the installation:
+## Install from .kwinscript (recommended)
 
-```
-./KLeftHandTiler.sh status
-./KLeftHandTiler.sh enable
-./KLeftHandTiler.sh disable
-./KLeftHandTiler.sh remove
-./KLeftHandTiler.sh unload
-```
+1. Download latest release  
+2. Open:
+       System Settings → Window Management → KWin Scripts  
+3. Click **Install from File…**  
+4. Select:
+       KLeftHandTiler.kwinscript  
+5. Enable script  
+
+---
+
+## Manual install
+
+    git clone https://github.com/mtriam/KLeftHandTiler.git
+    cd KLeftHandTiler
+    chmod +x KLeftHandTiler.sh
+    ./KLeftHandTiler.sh install
+
+---
+
+# 🗑 Uninstall
+
+    ./KLeftHandTiler.sh uninstall
 
 ---
 
 # 🧠 Development
 
-Project structure:
-
-```
-src/
- ├ metadata.json
- └ contents/
-     ├ code/main.js
-     ├ config/main.xml
-     └ ui/config.ui
-```
-
-Installer script copies these files to:
-
-```
-~/.local/share/kwin/scripts/KLeftHandTiler
-```
-
----
-
-# 🤖 About this project
-
-This project was developed with assistance from **AI tools**
-to accelerate development, testing and documentation.
-
-Human design, testing and final decisions remain under the project author.
+    src/
+      metadata.json
+      contents/
+        code/main.js
+        config/main.xml
+        ui/config.ui
 
 ---
 
@@ -310,6 +246,4 @@ GPL-3.0
 
 # 👤 Author
 
-**triamond**
-
-Inspired by the KDE tiling script community.
+triamond
