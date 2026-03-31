@@ -25,7 +25,7 @@ registerShortcut("ShrinkActiveWindow", "---Shrink active window", "Meta+Alt+Z", 
 // GLOBAL VARIABLES & STATE
 // ──────────────────────────────────────────────────────────────
 const DEBUG = false;  // change to true for verbose logging
-const MAX_WINDOWS = 10;
+const MAX_WINDOWS = 15;
 const LIVE_RESIZE_THROTTLE = 30;   // 50–80 idealne
 const MAX_FIRST_ROW = 3;
 
