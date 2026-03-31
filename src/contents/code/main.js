@@ -25,10 +25,9 @@ registerShortcut("ShrinkActiveWindow", "---Shrink active window", "Meta+Alt+Z", 
 // GLOBAL VARIABLES & STATE
 // ──────────────────────────────────────────────────────────────
 const DEBUG = false;  // change to true for verbose logging
-const MAX_WINDOWS = 20;
-const LIVE_RESIZE_THROTTLE = 60;   // 50–80 idealne
-const STICKY_EDGE_PX = 12;        // „przyciąganie” do granicy
-
+const MAX_WINDOWS = 10;
+const LIVE_RESIZE_THROTTLE = 30;   // 50–80 idealne
+const MAX_FIRST_ROW = 3;
 
 let scriptGeometryChange = false;
 let movingWindow = null;
@@ -44,6 +43,8 @@ let resizeThrottleTimer = null;
 let lastResizeClient = null;
 let lastResizeGeometry = null;
 let resizeEdges = new Map();
+let floatingWindows = new Set();
+let lastDesktopId = null;
 
 
 // ──────────────────────────────────────────────────────────────
@@ -238,11 +239,24 @@ function canAutoRetile() {
 }
 
 function applyAutoRetileMode(newMode) {
-    if (autoRetileMode === newMode) return;
-    autoRetileMode = newMode;
     const modes = ["Off", "Tiled only", "Always"];
-    if (DEBUG) print("KLeftHandTiler auto-retile mode changed to: " + modes[autoRetileMode]);
-    if (canAutoRetile()) scheduleRelayout();
+
+    const changed = (autoRetileMode !== newMode);
+    autoRetileMode = newMode;
+
+    const msg = "Auto-retile:\n " + modes[autoRetileMode];
+
+    if (DEBUG) {
+        print("KLeftHandTiler auto-retile mode: " + modes[autoRetileMode] + (changed ? " (changed)" : " (same)"));
+    }
+
+    // ZAWSZE pokazuj OSD
+    showOSD(msg);
+
+    // Relayout tylko jeśli faktycznie zmiana
+    if (changed && canAutoRetile()) {
+        scheduleRelayout();
+    }
 }
 
 function setAutoRetileOff() { applyAutoRetileMode(0); }
@@ -252,8 +266,39 @@ function setAutoRetileAlways() { applyAutoRetileMode(2); scheduleRelayout(); }
 // ──────────────────────────────────────────────────────────────
 // HELPERS
 // ──────────────────────────────────────────────────────────────
+function showOSD(message, icon = "object-order") {
+    if (!message) return;
+
+    callDBus(
+        "org.kde.plasmashell",
+        "/org/kde/osdService",
+        "org.kde.osdService",
+        "showText",
+        icon,
+        message
+    );
+}
+
+let lastOSDTime = 0;
+
+function showOSDSafe(msg, icon) {
+   const now = Date.now();
+   if (now - lastOSDTime < 400) return;
+   lastOSDTime = now;
+   showOSD(msg, icon);
+}
 
 
+
+// ──────────────────────────────────────────────────────────────
+function showUnifiedLayoutOSD(extraInfo = "") {
+    const name = getLayoutName();
+    let text = "Layout:\n " + name;
+    if (extraInfo) {
+        text += "\n" + extraInfo;
+    }
+    showOSD(text, "view-grid");
+}
 
 function sortByAngle(windows) {
     let cx = 0, cy = 0;
@@ -297,6 +342,21 @@ function matchesIgnoreList(win, list) {
     return false;
 }
 
+// Dodaj tę funkcję (np. obok getVisibleWindows)
+function getTiledOrder() {
+    const visible = getVisibleWindows();
+    let ordered = [];
+    const currentOrder = getLastTiledOrder();
+
+    for (let w of currentOrder) {
+        if (visible.includes(w) && !w.deleted) ordered.push(w);
+    }
+    for (let w of visible) {
+        if (!ordered.includes(w)) ordered.push(w);
+    }
+    return { ordered, visible };
+}
+
 
 function getVisibleWindows() {
     const currentDesk = workspace.currentDesktop;
@@ -304,39 +364,37 @@ function getVisibleWindows() {
     const activeScreen = workspace.activeScreen;
 
     return workspace.windowList().filter(w => {
-
-        if (!w.normalWindow ||
-            !w.managed ||
-            w.minimized ||
-            w.specialWindow ||
-            w.dock ||
-            w.desktopWindow ||
-            w.skipTaskbar ||
-            w.popup ||
-            w.dialog ||
-            w.utilityWindow ||
-            w.deleted ||
-            matchesIgnoreList(w, IGNORE_TILING)
-        ) {
+        if (!w.normalWindow || !w.managed || w.minimized || w.specialWindow || w.dock ||
+            w.desktopWindow || w.skipTaskbar || w.popup || w.dialog || w.utilityWindow ||
+            w.deleted || matchesIgnoreList(w, IGNORE_TILING)) {
             return false;
         }
 
-        if (currentActivity &&
-            !w.onAllActivities &&
-            !w.activities.includes(currentActivity)) {
+        // ───── FILTR AKTYWNOŚCI (było OK) ─────
+        if (currentActivity && !w.onAllActivities && !w.activities.includes(currentActivity)) {
             return false;
         }
 
+        // ───── NOWY FILTR PULPITU (KLUCZOWA POPRAWKA) ─────
+        const onCurrentDesktop = w.desktops.some(d => {
+            if (typeof currentDesk === "number") {
+                return d === currentDesk;
+            }
+            if (d && typeof d === "object" && d.id) {
+                return d.id === currentDesk.id;
+            }
+            return false;
+        });
+        if (!onCurrentDesktop) return false;
+
+        // ───── FILTR GEOMETRII (ekran) ─────
         const geo = w.frameGeometry;
         const screenGeo = workspace.clientArea(KWin.FullScreenArea, activeScreen, currentDesk);
-
         const centerX = geo.x + geo.width / 2;
         const centerY = geo.y + geo.height / 2;
 
-        return centerX >= screenGeo.x &&
-               centerX < screenGeo.x + screenGeo.width &&
-               centerY >= screenGeo.y &&
-               centerY < screenGeo.y + screenGeo.height;
+        return centerX >= screenGeo.x && centerX < screenGeo.x + screenGeo.width &&
+               centerY >= screenGeo.y && centerY < screenGeo.y + screenGeo.height;
     });
 }
 
@@ -461,7 +519,6 @@ function isLauncher(client) {
 
 
 function tileGridToModel(ordered, area) {
-
     const count = ordered.length;
     if (count === 0) return null;
 
@@ -472,40 +529,21 @@ function tileGridToModel(ordered, area) {
     for (let w of ordered) {
         minSingle = Math.max(minSingle, getMinWidth(w));
     }
-
     if (minSingle > area.width) {
         if (DEBUG) print("IMPOSSIBLE (single too wide) – keep old model");
         return layoutModel || null;
     }
 
-    // ❌ USUNIĘTY BUG:
-    // NIE BLOKUJEMY modelu przy > MAX_WINDOWS
-    // limit robimy w reLayout()
-
     // ───── 2 OKNA ─────
     if (count === 2) {
-
         const vertical = getFirstRowWindowsMode() > 0;
-
         if (vertical) {
-
             const total = getTopRatio() + 1;
-
-            model.rows.push({
-                heightRatio: getTopRatio() / total,
-                windows: [{ win: ordered[0], widthRatio: 1 }]
-            });
-
-            model.rows.push({
-                heightRatio: 1 / total,
-                windows: [{ win: ordered[1], widthRatio: 1 }]
-            });
-
+            model.rows.push({ heightRatio: getTopRatio() / total, windows: [{ win: ordered[0], widthRatio: 1 }] });
+            model.rows.push({ heightRatio: 1 / total, windows: [{ win: ordered[1], widthRatio: 1 }] });
             return model;
         }
-
         const total = getLeftRatio() + 1;
-
         model.rows.push({
             heightRatio: 1,
             windows: [
@@ -513,84 +551,70 @@ function tileGridToModel(ordered, area) {
                 { win: ordered[1], widthRatio: 1 / total }
             ]
         });
-
         return model;
     }
 
-    // ───── LEFT MAIN ─────
+    // ───── LEFT MAIN ───── (bez zmian)
     if (getFirstRowWindowsMode() === -1 && count > 1) {
-
         const main = ordered[0];
         const rest = ordered.slice(1);
         const usableWidth = area.width;
-
         const total = getLeftRatio() + 1;
         let leftW = (getLeftRatio() / total) * usableWidth;
-
         const minLeft = getMinWidth(main);
+        const maxRightWidth = usableWidth - minLeft - GAP;
 
-        let rightCols = 1;
-        if (rest.length <= 3) rightCols = 1;
-        else if (rest.length <= 8) rightCols = 2;
-        else rightCols = Math.min(3, Math.ceil(Math.sqrt(rest.length)));
+        let rightCols;
 
+        // 🔥 SPECJALNY PRZYPADEK: 2 okna w grid → pion (1 kolumna)
+        // zapobiega 3 oknom w jednym rzędzie
+        if (rest.length === 2) {
+            rightCols = 1;
+        } else {
+            rightCols = Math.ceil(Math.sqrt(rest.length));
+            rightCols = Math.max(1, rightCols);
+        }
+        let fits = false;
         while (rightCols > 1) {
-
             const rows = Math.ceil(rest.length / rightCols);
-
-            let fits = true;
+            fits = true;
             let idx = 0;
-
             for (let r = 0; r < rows; r++) {
-
                 const inRow = Math.min(rightCols, rest.length - idx);
-
                 let required = 0;
-
                 for (let i = 0; i < inRow; i++) {
                     required += getMinWidth(rest[idx + i]);
                     if (i > 0) required += GAP;
                 }
-
-                if (required > usableWidth) {
+                if (required > maxRightWidth) {
                     fits = false;
                     break;
                 }
-
                 idx += inRow;
             }
-
             if (fits) break;
-
             rightCols--;
         }
 
         const rightRows = Math.ceil(rest.length / rightCols);
-
         let minGrid = 0;
         let tmpIdx = 0;
-
         for (let r = 0; r < rightRows; r++) {
-
             const inRow = Math.min(rightCols, rest.length - tmpIdx);
-
             let rowMin = 0;
-
             for (let i = 0; i < inRow; i++) {
                 rowMin += getMinWidth(rest[tmpIdx++]);
                 if (i > 0) rowMin += GAP;
             }
-
             minGrid = Math.max(minGrid, rowMin);
         }
 
         if (minGrid + minLeft + GAP > usableWidth) {
-            if (DEBUG) print("IMPOSSIBLE LEFT+GRID – keep old model");
-            return layoutModel || null;
+            if (DEBUG) print("IMPOSSIBLE LEFT+GRID");
+            return null;
         }
 
         const maxLeft = usableWidth - GAP - minGrid;
-
         if (maxLeft <= minLeft) {
             leftW = minLeft;
         } else {
@@ -598,148 +622,132 @@ function tileGridToModel(ordered, area) {
         }
 
         let idx = 0;
-
         for (let r = 0; r < rightRows; r++) {
-
             const inRow = Math.min(rightCols, rest.length - idx);
-
-            const row = {
-                heightRatio: 1 / rightRows,
-                windows: []
-            };
-
+            const row = { heightRatio: 1 / rightRows, windows: [] };
             for (let c = 0; c < inRow && idx < rest.length; c++) {
-                row.windows.push({
-                    win: rest[idx++],
-                    widthRatio: 1 / inRow
-                });
+                row.windows.push({ win: rest[idx++], widthRatio: 1 / inRow });
             }
-
             model.rows.push(row);
         }
-
-        model.leftMain = {
-            win: main,
-            widthRatio: leftW / usableWidth
-        };
-
+        model.leftMain = { win: main, widthRatio: leftW / usableWidth };
         return model;
     }
 
-    // ───── GRID ─────
-
-    let cols = Math.ceil(Math.sqrt(count));
-
-    while (cols > 1) {
-
-        const rows = Math.ceil(count / cols);
-
-        let fits = true;
-        let idx = 0;
-
-        for (let r = 0; r < rows; r++) {
-
-            const inRow = Math.min(cols, count - idx);
-
-            let required = 0;
-
-            for (let i = 0; i < inRow; i++) {
-                required += getMinWidth(ordered[idx + i]);
-                if (i > 0) required += GAP;
-            }
-
-            if (required > area.width) {
-                fits = false;
-                break;
-            }
-
-            idx += inRow;
-        }
-
-        if (fits) break;
-
-        cols--;
-    }
-
-    let minRow = 0;
-    for (let i = 0; i < count; i++) {
-        minRow += getMinWidth(ordered[i]);
-        if (i > 0) minRow += GAP;
-    }
-
-    if (cols === 1 && minRow > area.width) {
-        if (DEBUG) print("IMPOSSIBLE GRID – keep old model");
-        return layoutModel || null;
-    }
-
-    const rows = Math.ceil(count / cols);
-
-    const base = Math.floor(count / rows);
-    const remainder = count % rows;
-    const autoFirstRow = base + (remainder > 0 ? 1 : 0);
-
-    let firstRowWindows = autoFirstRow;
+    // ───── GRID MODE – poprawiona logika first row (auto + fixed) ─────
+    let firstRowCount;
 
     if (getFirstRowWindowsMode() > 0) {
-        firstRowWindows = Math.min(getFirstRowWindowsMode(), count);
-    } else if (getFirstRowWindowsMode() === -1) {
-        firstRowWindows = 1;
-    }
+        // Tryb ręczny (np. 3 okna na górze)
+        firstRowCount = Math.min(getFirstRowWindowsMode(), count);
+    } else {
+        // AUTO – bezpieczna wersja
+        firstRowCount = Math.ceil(Math.sqrt(count));   // start od klasycznego
 
-    const totalWeight = getTopRatio() + (rows - 1);
+        // Zmniejszaj liczbę okien w pierwszym rzędzie dopóki się nie zmieści
+        while (firstRowCount > 1) {
+            let minSum = 0;
+            for (let i = 0; i < firstRowCount; i++) {
+                minSum += getMinWidth(ordered[i]);
+                if (i > 0) minSum += GAP;
+            }
+            if (minSum <= area.width) break;
+            firstRowCount--;
+        }
+        if (firstRowCount < 1) firstRowCount = 1;
+    }
 
     let idx = 0;
 
-    for (let row = 0; row < rows && idx < count; row++) {
+    // ───── FIRST ROW ─────
+    {
+        const usableW = area.width - GAP * Math.max(0, firstRowCount - 1);
+        let minSum = 0;
+        const mins = [];
 
-        const isFirst = row === 0;
-
-        let windowsInRow;
-        if (isFirst) {
-            windowsInRow = firstRowWindows;
-        } else {
-            windowsInRow = Math.ceil((count - idx) / Math.max(1, rows - row));
+        for (let i = 0; i < firstRowCount; i++) {
+            const m = getMinWidth(ordered[idx + i]);
+            mins.push(m);
+            minSum += m;
         }
 
-        const rowHeight = (rows > 1)
-            ? (isFirst ? getTopRatio() / totalWeight : 1 / totalWeight)
-            : 1;
+        if (minSum > usableW) {
+            if (DEBUG) print(`FIRST ROW IMPOSSIBLE – minSum=${minSum} > usableW=${usableW} (firstRowCount=${firstRowCount})`);
+            return null;
+        }
 
+        const extra = usableW - minSum;
         const windows = [];
 
-        if (isFirst && windowsInRow > 1) {
-
-            const normalCount = windowsInRow - 1;
+        if (firstRowCount > 1) {
+            const normalCount = firstRowCount - 1;
             const totalW = getLeftRatio() + normalCount;
 
             windows.push({
                 win: ordered[idx++],
-                widthRatio: getLeftRatio() / totalW
+                widthRatio: (mins[0] + extra * (getLeftRatio() / totalW)) / usableW
             });
 
-            for (let i = 0; i < normalCount && idx < count; i++) {
+            for (let i = 1; i < firstRowCount; i++) {
                 windows.push({
                     win: ordered[idx++],
-                    widthRatio: 1 / totalW
+                    widthRatio: (mins[i] + extra * (1 / totalW)) / usableW
                 });
             }
-        }
-        else {
-
-            const colW = 1 / windowsInRow;
-
-            for (let i = 0; i < windowsInRow && idx < count; i++) {
-                windows.push({
-                    win: ordered[idx++],
-                    widthRatio: colW
-                });
-            }
+        } else {
+            windows.push({ win: ordered[idx++], widthRatio: 1 });
         }
 
-        model.rows.push({
-            heightRatio: rowHeight,
-            windows: windows
-        });
+        model.rows.push({ heightRatio: 1, windows: windows });
+    }
+
+    // ───── DYNAMIC GRID – reszta okien ─────
+    while (idx < count) {
+        let row = [];
+        let rowMin = 0;
+
+        while (idx < count) {
+            const w = ordered[idx];
+            const minW = getMinWidth(w);
+            const nextCount = row.length + 1;
+            const required = rowMin + (row.length > 0 ? GAP : 0) + minW + GAP * (nextCount - 1);
+
+            if (required > area.width) break;
+
+            row.push(w);
+            rowMin += minW;
+            idx++;
+        }
+
+        if (row.length === 0 && idx < count) {
+            row.push(ordered[idx++]);
+            rowMin = getMinWidth(row[0]);
+        }
+
+        const usableW = area.width - GAP * Math.max(0, row.length - 1);
+        const extra = usableW - rowMin;
+        const windows = [];
+
+        for (let i = 0; i < row.length; i++) {
+            const minW = getMinWidth(row[i]);
+            const ratio = (minW + extra / row.length) / usableW;
+            windows.push({ win: row[i], widthRatio: ratio });
+        }
+
+        model.rows.push({ heightRatio: 1, windows: windows });
+    }
+
+    // ───── HEIGHT NORMALIZATION ─────
+    if (model.rows.length > 1) {
+        const totalWeight = getTopRatio() + (model.rows.length - 1);
+        for (let i = 0; i < model.rows.length; i++) {
+            const isFirst = i === 0;
+            model.rows[i].heightRatio = isFirst 
+                ? getTopRatio() / totalWeight 
+                : 1 / totalWeight;
+        }
+    } else if (model.rows.length === 1) {
+        model.rows[0].heightRatio = 1;
     }
 
     return model;
@@ -752,17 +760,22 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
     const n = items.length;
     if (n === 0) return [];
 
+    // ───── SAFE USABLE ─────
     const totalGap = gap * (n - 1);
-    const usable = totalSize - totalGap;
+    let usable = totalSize - totalGap;
 
-    if (usable <= 0) return new Array(n).fill(1);
+    if (!isFinite(usable) || usable <= 0) {
+        return new Array(n).fill(1);
+    }
 
     // ───── ratios ─────
     let ratioSum = 0;
     const ratios = [];
 
     for (let i = 0; i < n; i++) {
-        const r = getRatio(items[i]) || 0;
+        let r = getRatio(items[i]);
+        if (!isFinite(r) || r < 0) r = 0;
+
         ratios.push(r);
         ratioSum += r;
     }
@@ -772,51 +785,82 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
         for (let i = 0; i < n; i++) ratios[i] = 1;
     }
 
+    // ───── mins (SAFE CLAMP) ─────
+    const mins = [];
+    let sumMin = 0;
+
+    for (let i = 0; i < n; i++) {
+
+        let m = getMin(items[i]);
+
+        if (!isFinite(m) || m < 0) m = 0;
+
+        // 🔥 KLUCZ: clamp żeby pojedyncze okno nie rozwaliło layoutu
+        m = Math.min(m, usable);
+
+        mins.push(m);
+        sumMin += m;
+    }
+
     // ───── initial sizes (source of truth) ─────
     let sizes = [];
+
     for (let i = 0; i < n; i++) {
         sizes[i] = usable * (ratios[i] / ratioSum);
     }
 
-    // ───── mins ─────
-    const mins = items.map(getMin);
-
-    // clamp do minimum
+    // ───── clamp do minimum ─────
     for (let i = 0; i < n; i++) {
         if (sizes[i] < mins[i]) {
             sizes[i] = mins[i];
         }
     }
 
-    // ───── LOCAL overflow handling (KLUCZ FIX) ─────
+    // ───── LOCAL overflow handling (ORYGINALNA LOGIKA) ─────
     let sum = sizes.reduce((a, b) => a + b, 0);
 
     if (sum > usable) {
 
         let overflow = sum - usable;
 
-        // 🔥 najpierw zabieramy tylko z tych co mają zapas
-        for (let i = 0; i < n && overflow > 0; i++) {
+        // 🔥 zdejmujemy dokładnie tyle ile trzeba (bez ratio!)
+        let i = 0;
 
-            const min = mins[i];
-            const canShrink = sizes[i] - min;
+        while (overflow > 0 && n > 0) {
+
+            const idx = i % n;
+
+            const min = mins[idx];
+            const canShrink = sizes[idx] - min;
 
             if (canShrink > 0) {
+
                 const take = Math.min(canShrink, overflow);
-                sizes[i] -= take;
+
+                sizes[idx] -= take;
                 overflow -= take;
             }
+
+            i++;
+
+            // safety
+            if (i > n * 20) break;
         }
 
-        // 🔥 fallback (ekstremalny przypadek – wszystko na min)
+        // 🔥 HARD SAFETY (rzadkie – ale bezpieczne)
         if (overflow > 0) {
 
-            // wtedy dopiero global scale (rzadkie)
-            const scale = usable / sum;
+            if (DEBUG) {
+                print("⚠️ EXTREME OVERFLOW → equal fallback");
+            }
+
+            const base = Math.max(1, Math.floor(usable / n));
 
             for (let i = 0; i < n; i++) {
-                sizes[i] *= scale;
+                sizes[i] = base;
             }
+
+            return sizes;
         }
     }
 
@@ -828,25 +872,41 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
     let diff = usable - finalSum;
 
     let i = 0;
+
     while (diff !== 0 && n > 0) {
 
+        const idx = i % n;
+
         if (diff > 0) {
-            sizes[i % n]++;
+            sizes[idx]++;
             diff--;
         } else {
-            // nie schodzimy poniżej minimum
-            if (sizes[i % n] > mins[i % n]) {
-                sizes[i % n]--;
+            if (sizes[idx] > mins[idx]) {
+                sizes[idx]--;
                 diff++;
             }
         }
 
         i++;
+
+        // safety
+        if (i > n * 20) break;
+    }
+
+    // ───── FINAL SAFETY ─────
+    for (let i = 0; i < n; i++) {
+
+        if (!isFinite(sizes[i]) || sizes[i] <= 0) {
+
+            if (DEBUG) print("❌ INVALID SIZE → fallback");
+
+            const base = Math.max(1, Math.floor(usable / n));
+            return new Array(n).fill(base);
+        }
     }
 
     return sizes;
 }
-
 
 function normalizeModelWithConstraints(model, usable) {
 
@@ -878,12 +938,12 @@ function normalizeModelWithConstraints(model, usable) {
         model.rows.forEach(r => r.heightRatio = 1);
     }
 
-    // 🔹 normalizacja bazowa (proporcje zachowane)
+    // normalizacja bazowa
     for (let row of model.rows) {
         row.heightRatio /= sumRatios;
     }
 
-    // 🔹 clamp do minimum (BEZ niszczenia proporcji)
+    // clamp do minimum
     for (let i = 0; i < model.rows.length; i++) {
 
         const minRatio = minHeights[i] / totalH;
@@ -893,13 +953,21 @@ function normalizeModelWithConstraints(model, usable) {
         }
     }
 
-    // 🔹 jeśli overflow → skaluj łagodnie (bez resetu)
+    // scale jeśli overflow
     let sumAfterClamp = model.rows.reduce((a, r) => a + r.heightRatio, 0);
 
     if (sumAfterClamp > 1) {
         const scale = 1 / sumAfterClamp;
         for (let row of model.rows) {
             row.heightRatio *= scale;
+        }
+
+        // 🔥 KLUCZ: ponowny clamp (naprawia edge-case)
+        for (let i = 0; i < model.rows.length; i++) {
+            const minRatio = minHeights[i] / totalH;
+            if (model.rows[i].heightRatio < minRatio) {
+                model.rows[i].heightRatio = minRatio;
+            }
         }
     }
 
@@ -921,12 +989,10 @@ function normalizeModelWithConstraints(model, usable) {
             row.windows.forEach(w => w.widthRatio = 1);
         }
 
-        // 🔹 normalizacja bazowa
         for (let item of row.windows) {
             item.widthRatio /= sumRatiosW;
         }
 
-        // 🔹 clamp
         for (let i = 0; i < row.windows.length; i++) {
 
             const minRatio = minWidths[i] / totalW;
@@ -936,7 +1002,6 @@ function normalizeModelWithConstraints(model, usable) {
             }
         }
 
-        // 🔹 soft normalize (bez niszczenia)
         let sumAfter = row.windows.reduce((a, w) => a + w.widthRatio, 0);
 
         if (sumAfter > 1) {
@@ -949,79 +1014,275 @@ function normalizeModelWithConstraints(model, usable) {
 }
 
 
-function reLayout() {
+function validateLayoutBySimulation(model, usable) {
 
-    let wins = getVisibleWindows();
+    if (!model || !model.rows) return false;
 
-    if (wins.length === 0) return;
-    if (wins.every(w => w.minimized)) return;
+    // ───────── LEFT MAIN ─────────
+    if (model.leftMain) {
 
-    // ─────────────────────────────────────────────
-    // 🔥 LIMIT (bez skipowania layoutu)
-    // ─────────────────────────────────────────────
-    if (wins.length > MAX_WINDOWS) {
+        const mainW = Math.max(1, Math.round(model.leftMain.widthRatio * usable.width));
 
-        if (DEBUG) print("KLeftHandTiler: limiting windows " + wins.length + " → " + MAX_WINDOWS);
+        const rightWidthTotal = Math.max(1, usable.width - mainW - GAP);
 
-        const order = getLastTiledOrder();
+        const rowHeights = distributeSizesWithMin(
+            model.rows,
+            usable.height,
+            GAP,
+            row => {
+                let m = 0;
+                for (let w of row.windows) m = Math.max(m, getMinHeight(w.win));
+                return m;
+            },
+            row => row.heightRatio
+        );
 
-        let limited = [];
+        for (let r = 0; r < model.rows.length; r++) {
 
-        for (let w of order) {
-            if (wins.includes(w) && !w.deleted) {
-                limited.push(w);
-                if (limited.length >= MAX_WINDOWS) break;
+            const row = model.rows[r];
+            const rowH = rowHeights[r];
+
+            if (rowH <= 0) return false;
+
+            const widths = distributeSizesWithMin(
+                row.windows,
+                rightWidthTotal,
+                GAP,
+                item => getMinWidth(item.win),
+                                                  item => item.widthRatio
+            );
+
+            for (let i = 0; i < widths.length; i++) {
+                if (widths[i] <= 0) return false;
             }
         }
 
-        for (let w of wins) {
-            if (!limited.includes(w)) {
-                limited.push(w);
-                if (limited.length >= MAX_WINDOWS) break;
-            }
-        }
-
-        wins = limited;
+        return true;
     }
 
-    // ─────────────────────────────────────────────
-    // RESET fullscreen / maximize
-    // ─────────────────────────────────────────────
-    for (let w of wins) {
+    // ───────── GRID ─────────
+
+    const rowHeights = distributeSizesWithMin(
+        model.rows,
+        usable.height,
+        GAP,
+        row => {
+            let m = 0;
+            for (let w of row.windows) m = Math.max(m, getMinHeight(w.win));
+            return m;
+        },
+        row => row.heightRatio
+    );
+
+    for (let r = 0; r < model.rows.length; r++) {
+
+        const row = model.rows[r];
+        const rowH = rowHeights[r];
+
+        if (rowH <= 0) return false;
+
+        const widths = distributeSizesWithMin(
+            row.windows,
+            usable.width,
+            GAP,
+            item => getMinWidth(item.win),
+                                              item => item.widthRatio
+        );
+
+        for (let i = 0; i < widths.length; i++) {
+            if (widths[i] <= 0) return false;
+        }
+    }
+
+    return true;
+}
+
+
+
+function canApplyLayoutModel(model, usable) {
+
+    if (!model || !model.rows) return false;
+
+    // LEFT MAIN
+    if (model.leftMain) {
+
+        const mainW = Math.round(model.leftMain.widthRatio * usable.width);
+
+        if (!isFinite(mainW) || mainW <= 0) return false;
+
+        const rightWidth = usable.width - mainW - GAP;
+        if (rightWidth <= 0) return false;
+
+        const rowHeights = distributeSizesWithMin(
+            model.rows,
+            usable.height,
+            GAP,
+            row => {
+                let m = 0;
+                for (let w of row.windows) m = Math.max(m, getMinHeight(w.win));
+                return m;
+            },
+            row => row.heightRatio
+        );
+
+        if (!rowHeights) return false;
+
+        for (let h of rowHeights) {
+            if (!isFinite(h) || h <= 0) return false;
+        }
+
+        for (let row of model.rows) {
+
+            const widths = distributeSizesWithMin(
+                row.windows,
+                rightWidth,
+                GAP,
+                item => getMinWidth(item.win),
+                                                  item => item.widthRatio
+            );
+
+            if (!widths) return false;
+
+            for (let w of widths) {
+                if (!isFinite(w) || w <= 0) return false;
+            }
+        }
+
+        return true;
+    }
+
+    // GRID
+
+    const rowHeights = distributeSizesWithMin(
+        model.rows,
+        usable.height,
+        GAP,
+        row => {
+            let m = 0;
+            for (let w of row.windows) m = Math.max(m, getMinHeight(w.win));
+            return m;
+        },
+        row => row.heightRatio
+    );
+
+    if (!rowHeights) return false;
+
+    for (let h of rowHeights) {
+        if (!isFinite(h) || h <= 0) return false;
+    }
+
+    for (let row of model.rows) {
+
+        const widths = distributeSizesWithMin(
+            row.windows,
+            usable.width,
+            GAP,
+            item => getMinWidth(item.win),
+                                              item => item.widthRatio
+        );
+
+        if (!widths) return false;
+
+        for (let w of widths) {
+            if (!isFinite(w) || w <= 0) return false;
+        }
+    }
+
+    return true;
+}
+
+
+function canFitHeightStrict(model, area) {
+
+    if (!model || !model.rows) return false;
+
+    let totalMinHeight = 0;
+
+    for (let r = 0; r < model.rows.length; r++) {
+
+        let rowMin = 0;
+
+        for (let item of model.rows[r].windows) {
+            rowMin = Math.max(rowMin, getMinHeight(item.win));
+        }
+
+        totalMinHeight += rowMin;
+
+        if (r > 0) totalMinHeight += GAP;
+    }
+
+    return totalMinHeight <= area.height;
+}
+
+
+
+function buildAndValidateModel(windows, usable) {
+
+    if (!windows || windows.length === 0) return null;
+
+    let model = tileGridToModel(windows, usable);
+
+    if (!model || !model.rows) return null;
+
+    normalizeModelWithConstraints(model, usable);
+
+    // 🔥 NOWY HARD CHECK (KLUCZ)
+    if (!canFitHeightStrict(model, usable)) {
+        if (DEBUG) print("HEIGHT HARD FAIL");
+        return null;
+    }
+
+    if (!canApplyLayoutModel(model, usable)) return null;
+
+    return model;
+}
+
+
+
+
+function reLayout() {
+    let { ordered, visible } = getTiledOrder();
+    
+    if (visible.length === 0) return;
+    if (visible.every(w => w.minimized)) return;
+
+    // ───── DETEKCJA ZMIANY DESKTOPU ─────
+    const currentDesk = workspace.currentDesktop;
+    const isDesktopSwitch = lastDesktopId !== null && lastDesktopId !== currentDesk.id;
+    lastDesktopId = currentDesk.id;
+
+    // ───── LIMIT MAX_WINDOWS ─────
+    let tooMany = false;
+    if (ordered.length > MAX_WINDOWS) {
+        tooMany = true;
+        if (DEBUG) print(`Too many windows (${ordered.length} > ${MAX_WINDOWS}) → limiting to ${MAX_WINDOWS}`);
+        
+        // Zachowujemy tylko pierwsze MAX_WINDOWS okien w ordered
+        ordered = ordered.slice(0, MAX_WINDOWS);
+        
+        // Resztę wrzucamy do floating
+        if (typeof floatingWindows !== "undefined") {
+            for (let i = MAX_WINDOWS; i < visible.length; i++) {
+                floatingWindows.add(visible[i]);
+            }
+        }
+    }
+
+    // ───── reset maximize/fullscreen ─────
+    for (let w of visible) {
         if (!w || w.deleted) continue;
         if (w.fullScreen) w.fullScreen = false;
         if (w.maximizeMode !== 0) w.setMaximize(false, false);
     }
 
-    // ─────────────────────────────────────────────
-    // ORDER (stabilny)
-    // ─────────────────────────────────────────────
-    let ordered = [];
-    const currentOrder = getLastTiledOrder();
+    setLastTiledOrder(ordered);   // zapisujemy okrojoną listę
 
-    for (let w of currentOrder) {
-        if (wins.includes(w) && !w.deleted) {
-            ordered.push(w);
-        }
-    }
-
-    for (let w of wins) {
-        if (!ordered.includes(w)) {
-            ordered.push(w);
-        }
-    }
-
-    setLastTiledOrder(ordered);
-
-    // ─────────────────────────────────────────────
-    // AREA
-    // ─────────────────────────────────────────────
+    // ───── AREA ─────
     const area = workspace.clientArea(
         KWin.FullScreenArea,
         workspace.activeScreen,
         workspace.currentDesktop
     );
-
     const usable = {
         x: area.x + MARGIN,
         y: area.y + MARGIN,
@@ -1029,45 +1290,82 @@ function reLayout() {
         height: area.height - 2 * MARGIN
     };
 
-    const state = getCurrentState();
+    if (usable.width < 50 || usable.height < 50) {
+        if (DEBUG) print("ABORT: usable area too small");
+        showOSDSafe("Screen too small", "dialog-error");
+        return;
+    }
 
-    // ─────────────────────────────────────────────
-    // 🔥 KLUCZ FIX – rebuild zależny od REALNYCH okien
-    // ─────────────────────────────────────────────
-    const visibleCount = getVisibleWindows().length;
+    const state = getCurrentState();
 
     const needRebuild =
         !layoutModel ||
-        layoutModel._visibleCount !== visibleCount ||
+        layoutModel._count !== ordered.length ||
         forceModelRebuild ||
         state._layoutDirty;
 
     if (needRebuild) {
+        let newModel = buildAndValidateModel(ordered, usable);
+        let removedWindows = [];
 
-        layoutModel = tileGridToModel(ordered, usable);
+        while (!newModel && ordered.length > 1) {
+            const removed = ordered.pop();
+            if (removed) removedWindows.push(removed);
+            newModel = buildAndValidateModel(ordered, usable);
+        }
 
-        // 🔥 zapis stanu
-        layoutModel._count = ordered.length;
-        layoutModel._visibleCount = visibleCount;
+        // Zarządzanie floating windows
+        if (typeof floatingWindows !== "undefined") {
+            floatingWindows.clear();
+            for (let w of removedWindows) {
+                floatingWindows.add(w);
+            }
+            // Jeśli było za dużo okien na początku - już dodaliśmy je wyżej
+        }
 
-        normalizeModelWithConstraints(layoutModel, usable);
+        // OSD tylko przy rzeczywistym braku miejsca (po redukcji)
+        if (!isDesktopSwitch && removedWindows.length > 0 && ordered.length > 0) {
+            const last = removedWindows[removedWindows.length - 1];
+            const name = last?.caption || last?.resourceClass;
+            if (name && name.trim() !== "") {
+   //             showOSDSafe("No space for:\n" + name, "dialog-warning");
+            }
+        }
 
+        // Informacja o limicie MAX_WINDOWS
+        if (tooMany) {
+      //      showOSDSafe(`Too many windows!\nTiling only ${MAX_WINDOWS}`, "dialog-warning");
+        }
+
+        if (!newModel) {
+            if (DEBUG) print("MODEL BUILD FAILED (even after reduction)");
+            showOSDSafe("Layout impossible", "dialog-error");
+            layoutModel = null;
+            forceModelRebuild = true;
+            return;
+        }
+
+        newModel._count = ordered.length;
+        layoutModel = newModel;
         forceModelRebuild = false;
         state._layoutDirty = false;
+        setLastTiledOrder(ordered);
 
-        if (DEBUG) print("MODEL REBUILT + NORMALIZED");
+        if (DEBUG) print("MODEL REBUILT OK");
     }
 
-    // ─────────────────────────────────────────────
-    // APPLY
-    // ─────────────────────────────────────────────
+    if (!layoutModel || !layoutModel.rows || !canApplyLayoutModel(layoutModel, usable)) {
+        if (DEBUG) print("ABORT APPLY (invalid layout)");
+        showOSDSafe("Layout broken", "dialog-error");
+        layoutModel = null;
+        forceModelRebuild = true;
+        return;
+    }
+
     scriptGeometryChange = true;
     applyLayoutModel(layoutModel, usable);
     scriptGeometryChange = false;
 
-    // ─────────────────────────────────────────────
-    // FOCUS FIX
-    // ─────────────────────────────────────────────
     if (workspace.activeWindow) {
         workspace.raiseWindow(workspace.activeWindow);
     }
@@ -1102,6 +1400,23 @@ function toggleAllWindows(forceMode = null) {
 // ──────────────────────────────────────────────────────────────
 // CYCLE RATIO PRESETS
 // ──────────────────────────────────────────────────────────────
+function getRatioOSD() {
+    const left = getLeftRatio();
+    const top  = getTopRatio();
+
+    // przelicz na procent (czytelniejsze niż ratio)
+    const leftPercent = Math.round((left / (left + 1)) * 100);
+    const topPercent  = Math.round((top  / (top  + 1)) * 100);
+
+    return {
+        leftPercent,
+        topPercent,
+        text: `Main ratio:\n ${leftPercent}% / ${100 - leftPercent}%`
+    };
+}
+
+
+
 function cycleMainRatioPresets() {
 
     let currentIndex = -1;
@@ -1124,6 +1439,9 @@ function cycleMainRatioPresets() {
 
     getCurrentState()._layoutDirty = true;   // 🔥 KLUCZ
 
+    const ratio = getRatioOSD();
+    showOSD(ratio.text, "view-split-left-right");
+
     minimizeIgnoredWindows();
     scheduleRelayout();
 }
@@ -1131,49 +1449,73 @@ function cycleMainRatioPresets() {
 // ──────────────────────────────────────────────────────────────
 // CYCLE FIRST ROW MODE
 // ──────────────────────────────────────────────────────────────
-function cycleFirstRowWindows() {
 
-    const visible = getVisibleWindows();
-    const count = visible.length;
-
-    if (count < 2) return;
+function getLayoutName() {
+    const mode = getFirstRowWindowsMode();
+    const count = getVisibleWindows().length;
 
     if (count === 2) {
+        return mode > 0 ? "Split Vertical ↕" : "Split Horizontal ↔";
+    }
+    if (mode === -1) return "Left Master ⬅";
+    if (mode === 0) return "Auto Grid ▦";
 
-        const mode = getFirstRowWindowsMode();
-        setFirstRowWindowsMode(mode > 0 ? 0 : 1);
+    // Top N tylko jeśli ma sens
+    if (mode > 0) {
+        return `Top ${mode} ▤`;
+    }
+    return "Unknown";
+}
 
-        getCurrentState()._layoutDirty = true;
 
-        minimizeIgnoredWindows();
-        scheduleRelayout();
-        return;
+
+function cycleFirstRowWindows() {
+    const { ordered, visible } = getTiledOrder();
+    const count = visible.length;
+    if (count < 2) return;
+
+    const area = workspace.clientArea(
+        KWin.FullScreenArea,
+        workspace.activeScreen,
+        workspace.currentDesktop
+    );
+    const usable = {
+        x: area.x + MARGIN,
+        y: area.y + MARGIN,
+        width: area.width - 2 * MARGIN,
+        height: area.height - 2 * MARGIN
+    };
+
+    const currentMode = getFirstRowWindowsMode();
+    let newMode = findNextPossibleLayout(currentMode, ordered, usable);
+
+    if (count === 2) {
+        newMode = (currentMode > 0) ? 0 : 1;
     }
 
-    const layouts = [-1, 0];
-
-    const cols = Math.ceil(Math.sqrt(count));
-    const rows = Math.ceil(count / cols);
-
-    const base = Math.floor(count / rows);
-    const remainder = count % rows;
-    const autoFirstRow = base + (remainder > 0 ? 1 : 0);
-
-    for (let i = 1; i <= autoFirstRow; i++) {
-        if (i !== autoFirstRow) layouts.push(i);
+    if (newMode === currentMode) {
+        newMode = (currentMode === 0) ? -1 : 0;
     }
 
-    const uniqueLayouts = [...new Set(layouts)];
-
-    let idx = uniqueLayouts.indexOf(getFirstRowWindowsMode());
-    if (idx === -1) idx = 0;
-
-    setFirstRowWindowsMode(uniqueLayouts[(idx + 1) % uniqueLayouts.length]);
-
-    getCurrentState()._layoutDirty = true;   // 🔥
+    setFirstRowWindowsMode(newMode);
+    getCurrentState()._layoutDirty = true;
 
     minimizeIgnoredWindows();
-    scheduleRelayout();
+    scheduleRelayout(0);
+
+    // ───── Budujemy komunikat z problemami ─────
+    let extra = "";
+    if (visible.length > MAX_WINDOWS) {
+        extra = `Too many windows! (only ${MAX_WINDOWS} tiled)`;
+    } else {
+        // Sprawdzamy czy aktualny model mieści wszystkie okna
+        const model = buildAndValidateModel(ordered, usable);
+        if (!model) {
+            extra = "Some windows don't fit";
+        }
+    }
+
+    showUnifiedLayoutOSD(extra);
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -1280,6 +1622,7 @@ function restoreLastMinimized() {
         w.minimized = false;
         workspace.activeWindow = w;
         workspace.raiseWindow(w);
+        showOSD("Restore window", "window-restore");
         return;
     }
 }
@@ -1342,6 +1685,7 @@ function smartTileHandler() {
                 w.setMaximize(true, true);
             }
         }
+        showOSD("Maximize all", "view-fullscreen");
         return;
     }
     smartTileLastTap = now;
@@ -1370,113 +1714,173 @@ function getMinRowWidth(row) {
     return sum + gaps;
 }
 
-function canFitWindowInLayout(newWin, existingWindows, area) {
+// ──────────────────────────────────────────────────────────────
+// Znajduje następny możliwy układ (z ograniczeniem MAX_FIRST_ROW)
+// ──────────────────────────────────────────────────────────────
+// ──────────────────────────────────────────────────────────────
+// Znajduje następny możliwy i ODMENNY układ
+// (respektuje MAX_FIRST_ROW + rzeczywistą liczbę okien)
+// ──────────────────────────────────────────────────────────────
+function findNextPossibleLayout(currentMode, ordered, usable) {
+    const n = ordered.length;
 
-    if (!newWin) return true;
+    // ───── dynamiczny limit Top N (nie więcej niż okien) ─────
+    const effectiveMaxTop = Math.min(MAX_FIRST_ROW, n);
 
-    const usableWidth = area.width - 2 * MARGIN;
+    const candidates = [-1, 0];                    // Left Master + Auto Grid
 
-    const all = existingWindows.concat([newWin]);
-
-    // 🔥 sprawdzamy najgorszy przypadek – jeden rząd
-    let required = 0;
-
-    for (let i = 0; i < all.length; i++) {
-        required += getMinWidth(all[i]);
-        if (i > 0) required += GAP;
+    // Top 1 … effectiveMaxTop
+    for (let i = effectiveMaxTop; i >= 1; i--) {
+        candidates.unshift(i);
     }
 
-    if (required <= usableWidth) return true;
+    let idx = candidates.indexOf(currentMode);
+    if (idx === -1) idx = 0;
 
-    // 🔥 spróbuj grid (kilka kolumn)
-    let cols = Math.ceil(Math.sqrt(all.length));
+    // Szukamy następnego układu, który jest inny i się mieści
+    for (let i = 1; i < candidates.length + 10; i++) {   // +10 = safety
+        const nextMode = candidates[(idx + i) % candidates.length];
 
-    while (cols > 1) {
-
-        const rows = Math.ceil(all.length / cols);
-
-        let fits = true;
-        let idx = 0;
-
-        for (let r = 0; r < rows; r++) {
-
-            const inRow = Math.min(cols, all.length - idx);
-
-            let rowMin = 0;
-
-            for (let i = 0; i < inRow; i++) {
-                rowMin += getMinWidth(all[idx + i]);
-                if (i > 0) rowMin += GAP;
-            }
-
-            if (rowMin > usableWidth) {
-                fits = false;
-                break;
-            }
-
-            idx += inRow;
+        if (nextMode <= 0) {
+            // Auto Grid i Left Master zawsze są dozwolone
+            return nextMode;
         }
 
-        if (fits) return true;
+        // Sprawdzenie czy Top N się realnie mieści
+        let minSum = 0;
+        const count = Math.min(nextMode, n);
+        for (let j = 0; j < count; j++) {
+            minSum += getMinWidth(ordered[j]);
+        }
+        const usableW = usable.width - GAP * Math.max(0, count - 1);
 
-        cols--;
+        if (minSum <= usableW) {
+            return nextMode;
+        }
     }
 
-    return false; // ❌ nie da się zmieścić
+    return 0; // ostateczny fallback = Auto Grid
 }
 
 
+
+// ──────────────────────────────────────────────────────────────
+// HELPER: maksymalna liczba okien w pierwszym rzędzie, która się realnie mieści
+// ──────────────────────────────────────────────────────────────
+function getMaxPossibleFirstRowCount(ordered, usable) {
+    if (!ordered || ordered.length === 0) return 1;
+    let maxN = ordered.length;
+    while (maxN > 1) {
+        let minSum = 0;
+        for (let i = 0; i < maxN; i++) {
+            if (i >= ordered.length) break;
+            minSum += getMinWidth(ordered[i]);
+        }
+        const usableW = usable.width - GAP * Math.max(0, maxN - 1);
+        if (minSum <= usableW) {
+            return maxN;
+        }
+        maxN--;
+    }
+    return 1;
+}
+
+// ──────────────────────────────────────────────────────────────
+// AUTO-SKIP niemożliwych firstRowMode – przechodzi do następnego możliwego
+// ──────────────────────────────────────────────────────────────
+function findNextPossibleFirstRowMode(currentMode, ordered, usable) {
+    const possibleModes = [-1, 0]; // Left Master i Auto Grid zawsze na końcu
+
+    // Dodajemy wszystkie sensowne Top N (od największego do 1)
+    const maxPossible = getMaxPossibleFirstRowCount(ordered, usable);
+    for (let n = maxPossible; n >= 1; n--) {
+        possibleModes.unshift(n); // wstawiamy na początek
+    }
+
+    // Usuwamy duplikaty
+    const unique = [...new Set(possibleModes)];
+
+    let idx = unique.indexOf(currentMode);
+    if (idx === -1) idx = 0;
+
+    // Zaczynamy od następnego po obecnym
+    for (let i = 1; i < unique.length; i++) {
+        const nextIdx = (idx + i) % unique.length;
+        const candidate = unique[nextIdx];
+
+        if (candidate <= 0) return candidate; // Left / Auto zawsze akceptujemy
+
+        // Sprawdzamy czy ten Top N się mieści
+        let minSum = 0;
+        for (let j = 0; j < candidate && j < ordered.length; j++) {
+            minSum += getMinWidth(ordered[j]);
+        }
+        const usableW = usable.width - GAP * Math.max(0, candidate - 1);
+        if (minSum <= usableW) {
+            return candidate;
+        }
+    }
+    return 0; // fallback na Auto Grid
+}
 
 
 function getMinWidth(win) {
-
-    if (!win) return 120;
-
-    if (win.minSize && win.minSize.width > 0)
-        return win.minSize.width;
-
-    if (win.minimumSize && win.minimumSize.width > 0)
-        return win.minimumSize.width;
-
-    const cls = (win.resourceClass || "").toLowerCase();
-
-    // Chromium / Electron apps often lie about minSize
-    if (
-        cls.includes("brave") ||
-        cls.includes("chrom") ||
-        cls.includes("electron") ||
-        cls.includes("vscode")
-    ) {
-        return 400;
+    if (!win || win.deleted) {
+        return 240;
     }
 
-    return 120;
+    // Najbardziej wiarygodne źródło – minimumSize
+    if (win.minimumSize && typeof win.minimumSize.width === "number" && win.minimumSize.width > 0) {
+        return Math.max(180, Math.min(620, win.minimumSize.width));   // twardy cap
+    }
+
+    // Starsza właściwość (dla kompatybilności)
+    if (win.minSize && typeof win.minSize.width === "number" && win.minSize.width > 0) {
+        return Math.max(180, Math.min(620, win.minSize.width));
+    }
+
+    // Fallback na podstawie resourceClass / resourceName
+    const cls = (win.resourceClass || "").toLowerCase();
+    const name = (win.resourceName || "").toLowerCase();
+
+    if (cls.includes("brave") || cls.includes("chrome") || cls.includes("chromium") ||
+        cls.includes("electron") || cls.includes("vscode") || name.includes("brave")) {
+        return 460;        // bezpieczna wartość dla Brave (działa dobrze w praktyce)
+    }
+
+    if (cls.includes("konsole") || cls.includes("terminal") || cls.includes("kitty") || cls.includes("alacritty")) {
+        return 280;
+    }
+
+    // Domyślna wartość dla pozostałych aplikacji
+    return 260;
 }
 
 function getMinHeight(win) {
+    if (!win || win.deleted) {
+        return 160;
+    }
 
-    if (!win) return 80;
+    if (win.minimumSize && typeof win.minimumSize.height === "number" && win.minimumSize.height > 0) {
+        return Math.max(120, Math.min(820, win.minimumSize.height));
+    }
 
-    if (win.minSize && win.minSize.height > 0)
-        return win.minSize.height;
-
-    if (win.minimumSize && win.minimumSize.height > 0)
-        return win.minimumSize.height;
+    if (win.minSize && typeof win.minSize.height === "number" && win.minSize.height > 0) {
+        return Math.max(120, Math.min(820, win.minSize.height));
+    }
 
     const cls = (win.resourceClass || "").toLowerCase();
 
-    if (cls.includes("konsole"))
-        return 120;
-
-    if (
-        cls.includes("brave") ||
-        cls.includes("chrom") ||
-        cls.includes("electron") ||
-        cls.includes("vscode")
-    )
+    if (cls.includes("konsole") || cls.includes("terminal")) {
         return 180;
+    }
 
-        return 80;
+    if (cls.includes("brave") || cls.includes("chrome") || cls.includes("chromium") ||
+        cls.includes("electron") || cls.includes("vscode")) {
+        return 260;
+    }
+
+    return 180;
 }
 
 
@@ -1485,23 +1889,41 @@ function getMinHeight(win) {
 
 
 function applyLayoutModel(model, area, skipClient = null) {
-    if (!model) return;
+
+    if (!model || !model.rows) return;
+
+    // 🔥 HARD STOP — absolutna ochrona
+    if (!canApplyLayoutModel(model, area)) {
+        if (DEBUG) print("applyLayoutModel BLOCKED (invalid layout)");
+        return;
+    }
+
     scriptGeometryChange = true;
+
     try {
+
         // ───────── LEFT MAIN ─────────
         if (model.leftMain) {
+
             const mainWin = model.leftMain.win;
-            const mainW = Math.round(model.leftMain.widthRatio * area.width);
+            const mainW = Math.max(1, Math.round(model.leftMain.widthRatio * area.width));
+
             if (mainWin && !mainWin.deleted && !(skipClient && mainWin === skipClient)) {
-                mainWin.frameGeometry = { x: area.x, y: area.y, width: mainW, height: area.height };
+                mainWin.frameGeometry = {
+                    x: area.x,
+                    y: area.y,
+                    width: mainW,
+                    height: area.height
+                };
             }
 
             let y = area.y;
-            let remainingH = area.height;
-            const rightWidthTotal = area.width - mainW - GAP;
+            const rightWidthTotal = Math.max(1, area.width - mainW - GAP);
 
             const rowHeights = distributeSizesWithMin(
-                model.rows, area.height, GAP,
+                model.rows,
+                area.height,
+                GAP,
                 row => {
                     let m = 0;
                     for (let w of row.windows) m = Math.max(m, getMinHeight(w.win));
@@ -1511,34 +1933,50 @@ function applyLayoutModel(model, area, skipClient = null) {
             );
 
             for (let r = 0; r < model.rows.length; r++) {
+
                 const row = model.rows[r];
-                const rowH = rowHeights[r];
+                const rowH = Math.max(1, rowHeights[r]);
+
                 let x = area.x + mainW + GAP;
 
                 const widths = distributeSizesWithMin(
-                    row.windows, rightWidthTotal, GAP,
+                    row.windows,
+                    rightWidthTotal,
+                    GAP,
                     item => getMinWidth(item.win),
-                                                      item => item.widthRatio
+                    item => item.widthRatio
                 );
 
                 for (let i = 0; i < row.windows.length; i++) {
+
                     const item = row.windows[i];
-                    const width = widths[i];
+                    const width = Math.max(1, widths[i]);
+
                     if (item.win && !item.win.deleted && !(skipClient && item.win === skipClient)) {
-                        item.win.frameGeometry = { x: x, y: y, width: width, height: rowH };
+                        item.win.frameGeometry = {
+                            x: x,
+                            y: y,
+                            width: width,
+                            height: rowH
+                        };
                     }
+
                     x += width + GAP;
                 }
+
                 y += rowH + GAP;
-                remainingH -= rowH + GAP;
             }
+
             return;
         }
 
-        // ───────── NORMAL GRID ─────────
+        // ───────── GRID ─────────
         let y = area.y;
+
         const rowHeights = distributeSizesWithMin(
-            model.rows, area.height, GAP,
+            model.rows,
+            area.height,
+            GAP,
             row => {
                 let m = 0;
                 for (let w of row.windows) m = Math.max(m, getMinHeight(w.win));
@@ -1548,26 +1986,40 @@ function applyLayoutModel(model, area, skipClient = null) {
         );
 
         for (let r = 0; r < model.rows.length; r++) {
+
             const row = model.rows[r];
-            const rowH = rowHeights[r];
+            const rowH = Math.max(1, rowHeights[r]);
+
             let x = area.x;
 
             const widths = distributeSizesWithMin(
-                row.windows, area.width, GAP,
+                row.windows,
+                area.width,
+                GAP,
                 item => getMinWidth(item.win),
-                                                  item => item.widthRatio
+                item => item.widthRatio
             );
 
             for (let i = 0; i < row.windows.length; i++) {
+
                 const item = row.windows[i];
-                const width = widths[i];
+                const width = Math.max(1, widths[i]);
+
                 if (item.win && !item.win.deleted && !(skipClient && item.win === skipClient)) {
-                    item.win.frameGeometry = { x: x, y: y, width: width, height: rowH };
+                    item.win.frameGeometry = {
+                        x: x,
+                        y: y,
+                        width: width,
+                        height: rowH
+                    };
                 }
+
                 x += width + GAP;
             }
+
             y += rowH + GAP;
         }
+
     } finally {
         scriptGeometryChange = false;
     }
@@ -1667,7 +2119,6 @@ function recomputeHeightsFromGeometry(model, usable, activeWin) {
     const usableH = usable.height - totalGap;
     if (usableH <= 0) return;
 
-    // ───── znajdź rząd ─────
     let rowIndex = -1;
 
     for (let r = 0; r < model.rows.length; r++) {
@@ -1682,28 +2133,19 @@ function recomputeHeightsFromGeometry(model, usable, activeWin) {
 
     if (rowIndex === -1) return;
 
-    // ─────────────────────────────────────────────
-    // 🔥 EDGE DETECTION – jak w poziomie (KLUCZ FIX)
-    // ─────────────────────────────────────────────
     const movingBottom =
         Math.abs((g.y + g.height) - (edge.lastY + edge.lastH)) >
         Math.abs(g.y - edge.lastY);
 
-    let upperRow, lowerRow;
-    let isUpper;
+    let upperRow, lowerRow, isUpper;
 
     if (movingBottom) {
-        // dolna krawędź
         if (rowIndex >= model.rows.length - 1) return;
-
         upperRow = model.rows[rowIndex];
         lowerRow = model.rows[rowIndex + 1];
         isUpper = true;
-
     } else {
-        // górna krawędź
         if (rowIndex <= 0) return;
-
         upperRow = model.rows[rowIndex - 1];
         lowerRow = model.rows[rowIndex];
         isUpper = false;
@@ -1711,12 +2153,10 @@ function recomputeHeightsFromGeometry(model, usable, activeWin) {
 
     const upperH = upperRow.heightRatio * usableH;
     const lowerH = lowerRow.heightRatio * usableH;
-
     const pairSum = upperH + lowerH;
 
-    // 🔥 REAL DELTA – stabilne (jak w rows)
-    const currentModelHeight = isUpper ? upperH : lowerH;
-    const realDelta = g.height - currentModelHeight;
+    // 🔥 delta względem modelu
+    const realDelta = g.height - (isUpper ? upperH : lowerH);
 
     if (Math.abs(realDelta) < 1.5) return;
 
@@ -1733,7 +2173,6 @@ function recomputeHeightsFromGeometry(model, usable, activeWin) {
     const minUpper = getMinRowHeight(upperRow);
     const minLower = getMinRowHeight(lowerRow);
 
-    // ───── clamp ─────
     if (newUpperH < minUpper) {
         newUpperH = minUpper;
         newLowerH = pairSum - newUpperH;
@@ -1744,27 +2183,25 @@ function recomputeHeightsFromGeometry(model, usable, activeWin) {
         newUpperH = pairSum - newLowerH;
     }
 
-    // ───── zapis ─────
     upperRow.heightRatio = newUpperH / usableH;
     lowerRow.heightRatio = newLowerH / usableH;
 
-    // ───── update edge (KLUCZ stabilności) ─────
     edge.lastY = g.y;
     edge.lastH = g.height;
 }
 
 function recomputeRowFromGeometry(row, usableWidth, activeWin) {
     if (!row || row.windows.length < 2) return;
+
     const edge = resizeEdges.get(activeWin);
     if (!edge) return;
 
-    const g = activeWin.frameGeometry;   // aktualna geometria z KWin
+    const g = activeWin.frameGeometry;
 
     const totalGap = GAP * (row.windows.length - 1);
     const usable = usableWidth - totalGap;
     if (usable <= 0) return;
 
-    // Znajdź indeks aktywnego okna
     let idx = -1;
     for (let i = 0; i < row.windows.length; i++) {
         if (row.windows[i].win === activeWin) {
@@ -1774,34 +2211,30 @@ function recomputeRowFromGeometry(row, usableWidth, activeWin) {
     }
     if (idx === -1) return;
 
-    // === AKTUALNA SZEROKOŚĆ AKTYWNEGO OKNA WG MODELU ===
     const activeItem = row.windows[idx];
-    const currentModelWidth = activeItem.widthRatio * usable;
 
-    // Ile naprawdę zmieniło się okno (to jest najpewniejsza delta)
-    const realDelta = g.width - currentModelWidth;
+    // 🔥 KLUCZ: delta względem modelu, ale bazowana na REAL width
+    const modelWidth = activeItem.widthRatio * usable;
+    const realDelta = g.width - modelWidth;
 
-    if (Math.abs(realDelta) < 1.5) return;   // za mała zmiana – ignorujemy
+    if (Math.abs(realDelta) < 1.5) return;
 
-    // Którą krawędź przeciąga użytkownik?
-    const draggingRightEdge = Math.abs(g.x + g.width - (edge.lastX + edge.lastW)) >
-                              Math.abs(g.x - edge.lastX);
+    const draggingRightEdge =
+        Math.abs(g.x + g.width - (edge.lastX + edge.lastW)) >
+        Math.abs(g.x - edge.lastX);
 
-    let leftItem, rightItem;
-    let deltaForLeft;
+    let leftItem, rightItem, deltaForLeft;
 
     if (draggingRightEdge) {
-        // Przeciągamy prawą krawędź → powiększamy aktywne okno, kurczymy prawe
         if (idx + 1 >= row.windows.length) return;
-        leftItem = activeItem;                    // lewe = aktywne
+        leftItem = activeItem;
         rightItem = row.windows[idx + 1];
-        deltaForLeft = realDelta;                 // +realDelta do lewego
+        deltaForLeft = realDelta;
     } else {
-        // Przeciągamy lewą krawędź → powiększamy aktywne, kurczymy lewe
         if (idx - 1 < 0) return;
         leftItem = row.windows[idx - 1];
-        rightItem = activeItem;                   // prawe = aktywne
-        deltaForLeft = -realDelta;                // lewe okno musi się zmniejszyć
+        rightItem = activeItem;
+        deltaForLeft = -realDelta;
     }
 
     let leftW = leftItem.widthRatio * usable;
@@ -1817,11 +2250,9 @@ function recomputeRowFromGeometry(row, usableWidth, activeWin) {
 
     const newRightW = pairSum - newLeftW;
 
-    // Zapisujemy nowe proporcje
     leftItem.widthRatio = newLeftW / usable;
     rightItem.widthRatio = newRightW / usable;
 
-    // === NAJWAŻNIEJSZE – aktualizujemy last* na 100% aktualną geometrię z KWin ===
     edge.lastX = g.x;
     edge.lastW = g.width;
     edge.lastY = g.y;
@@ -2101,7 +2532,7 @@ function scheduleLiveResizeUpdate(client) {
     if (resizeThrottleTimer) return;
 
     resizeThrottleTimer = new QTimer();
-    resizeThrottleTimer.interval = 40;
+    resizeThrottleTimer.interval = LIVE_RESIZE_THROTTLE;
 
     resizeThrottleTimer.timeout.connect(() => {
 
@@ -2844,90 +3275,63 @@ function isIgnoredSpecialWindow(client) {
            IGNORED_RESOURCE_NAMES.some(name => rName.includes(name));
 }
 
-// ──────────────────────────────────────────────────────────────
-// WINDOW ADDED
-// ──────────────────────────────────────────────────────────────
 workspace.windowAdded.connect(client => {
     if (!client) return;
-
-    // ─────────────────────────────────────────────
-    // 🔌 HOOKI – zawsze od razu
-    // ─────────────────────────────────────────────
+    if (isLauncher(client) || isIgnoredSpecialWindow(client)) {
+        if (DEBUG) print("IGNORED windowAdded:", client.resourceClass);
+        return;
+    }
     trackMoveEvents(client);
     trackResizeEvents(client);
     trackWindowMinimizeRestore(client);
     attachDesktopChangeHandler(client);
 
-    if (DEBUG) {
-        print("---- NEW WINDOW DEBUG ----");
-        print("caption:", client.caption);
-        print("resourceClass:", client.resourceClass);
-        print("resourceName:", client.resourceName);
-        print("windowRole:", client.windowRole);
-        print("wmClass:", client.resourceClass);
-        print("minSize:", client.minSize ? client.minSize.width + "x" + client.minSize.height : "none");
-        print("minimumSize:", client.minimumSize ? client.minimumSize.width + "x" + client.minimumSize.height : "none");
-        print("geometry:", client.frameGeometry.width + "x" + client.frameGeometry.height);
-        print("---------------------------");
-    }
-
-    // ─────────────────────────────────────────────
-    // 🚫 IGNORE (wcześnie)
-    // ─────────────────────────────────────────────
-    if (IGNORE_TRANSIENT_WINDOWS && (client.transient || client.modal)) return;
-    if (IGNORE_TRANSIENT_WINDOWS && isIgnoredSpecialWindow(client)) return;
-    if (isLauncher(client)) return;
-
     if (!(AUTO_LAYOUT_ON_NEW_WINDOW && canAutoRetile())) return;
 
-    // ─────────────────────────────────────────────
-    // ⏱️ DELAY – kompatybilny z KWin
-    // ─────────────────────────────────────────────
     let timer = new QTimer();
-    timer.interval = 120;
-
+    timer.interval = 160;
     timer.timeout.connect(() => {
+        timer.stop();
+        if (!client || client.deleted) return;
+        if (isLauncher(client) || isIgnoredSpecialWindow(client)) return;
 
-        timer.stop();   // 🔥 robi singleShot
-
-        if (!client || client.deleted || !client.managed || !client.normalWindow) return;
-        if (client.transient || client.modal) return;
-
-        const currentDesk = workspace.currentDesktop;
-
-        if (!client.desktops || client.desktops.length === 0) return;
-        if (!client.desktops.some(d => d.id === currentDesk.id)) return;
-
-        if (IGNORE_TRANSIENT_WINDOWS && isIgnoredSpecialWindow(client)) return;
-
-        const caption = (client.caption || "").toLowerCase();
-        if (IGNORE_TILING.some(word => caption.includes(word))) return;
-
-        // ─────────────────────────────────────────────
-        // 🔥 FIT CHECK
-        // ─────────────────────────────────────────────
-        const existing = getVisibleWindows().filter(w => w !== client);
-
+        const { ordered, visible } = getTiledOrder();
         const area = workspace.clientArea(
             KWin.FullScreenArea,
             workspace.activeScreen,
             workspace.currentDesktop
         );
+        const usable = {
+            x: area.x + MARGIN,
+            y: area.y + MARGIN,
+            width: area.width - 2 * MARGIN,
+            height: area.height - 2 * MARGIN
+        };
 
-        const fits = canFitWindowInLayout(client, existing, area);
-
-        if (!fits) {
-            if (DEBUG) print("KLeftHandTiler: new window DOES NOT FIT → ignored (floating)");
+        if (visible.length > MAX_WINDOWS) {
+            if (typeof floatingWindows !== "undefined") floatingWindows.add(client);
+            showOSDSafe(`Too many windows!\nTiling only ${MAX_WINDOWS}`, "dialog-warning");
+            scheduleRelayout(0);
             return;
         }
 
-        // ─────────────────────────────────────────────
-        // ✅ NORMAL FLOW
-        // ─────────────────────────────────────────────
-        scheduleRelayout();
+        let testOrdered = ordered.slice();
+        if (!testOrdered.includes(client)) testOrdered.push(client);
 
+        const testModel = buildAndValidateModel(testOrdered, usable);
+
+        if (!testModel) {
+            if (typeof floatingWindows !== "undefined") floatingWindows.add(client);
+            const name = client.caption || client.resourceClass || "?";
+            showOSDSafe("No space in the tile for:\n" + name, "dialog-warning");
+            scheduleRelayout(0);
+            return;
+        }
+
+        // Okno się mieści → brak OSD
+        if (typeof floatingWindows !== "undefined") floatingWindows.delete(client);
+        scheduleRelayout(0);
     });
-
     timer.start();
 });
 
@@ -2961,21 +3365,19 @@ function handleWindowRemoved(client) {
 
     if (!client) return;
 
-    // ─────────────────────────────────────────────
-    // 🔥 KLUCZ – sprawdzamy layoutModel (nie order!)
-    // ─────────────────────────────────────────────
-    const wasInLayout = isWindowInLayoutModel(layoutModel, client);
-
-    if (!wasInLayout) {
-        if (DEBUG) print("Ignored removal (not in layoutModel)");
-        return;
+    // 🔥 CLEANUP floating windows
+    if (typeof floatingWindows !== "undefined") {
+        floatingWindows.delete(client);
     }
 
-    if (DEBUG) print("Window WAS in layout → retile");
+    const currentOrder = getLastTiledOrder();
 
-    // ───── cleanup ─────
+    // 🔥 tylko jeśli był w layout
+    const wasTiled = currentOrder.includes(client);
+
     minimizedStack = minimizedStack.filter(w => w !== client && !w.deleted);
 
+    // usuń z wszystkich stanów
     for (let key in states) {
         const state = states[key];
         if (state && state.lastTiledOrder) {
@@ -2983,14 +3385,22 @@ function handleWindowRemoved(client) {
         }
     }
 
-    // ───── guards ─────
+    // 🔥 KLUCZ: jeśli był tiled → wymuś przebudowę
+    if (wasTiled) {
+        if (DEBUG) print("WINDOW REMOVED → force rebuild");
+
+        layoutModel = null;          // 💥 najważniejsze
+        forceModelRebuild = true;    // dodatkowy bezpiecznik
+
+        getCurrentState()._layoutDirty = true;
+    }
+
     if (!AUTO_LAYOUT_ON_WINDOW_CLOSE || !canAutoRetile()) return;
 
     if (IGNORE_TRANSIENT_WINDOWS && (client.transient || client.modal)) return;
     if (IGNORE_TRANSIENT_WINDOWS && isIgnoredSpecialWindow(client)) return;
     if (isLauncher(client)) return;
 
-    // ───── RELAYOUT ─────
     scheduleRelayout();
 }
 
