@@ -12,15 +12,17 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 
 ---
 
-## 🚀 What's new in v2.0
+## 🚀 What's new in v2.1
 
-- 🧠 New **model-based layout engine**
-- 🔄 **Live resize**
-- 📐 **Constraint-aware tiling**
-- 🧩 Improved **left-main layouts**
-- ⚡ Performance improvements (caching + throttling)
-- ⌨️ New controls: **swap windows + grow/shrink**
-
+- 🧠 Improved layout validation (safer geometry)
+- 🧩 Better grid + first-row logic
+- 🧱 Floating windows for non-fitting cases
+- 🛡 Crash prevention & safety checks
+- 🔄 Smarter auto-retile
+- ⚡ More stable live resize
+- 🧮 Better minimum size handling
+- 🔔 New OSD system (layout, ratio, warnings)
+- 🚫 Improved plasmashell/system window filtering
 ---
 
 ## 🎬 Preview
@@ -48,11 +50,12 @@ Optional:
 
 ## ✨ Features
 
+
 ### 🧠 Layout engine
 
 - model-based (rows + ratios)  
-- stable (no drift)  
-- predictable resizing  
+- stable and predictable  
+- safer geometry handling  
 
 ---
 
@@ -67,8 +70,8 @@ Optional:
 ### 📐 Constraint-aware tiling
 
 - respects minimum window sizes  
-- prevents impossible layouts  
-- avoids gaps / overlaps  
+- prevents invalid layouts  
+- avoids overlaps and broken geometry  
 
 ---
 
@@ -77,6 +80,26 @@ Optional:
 - main + stack/grid  
 - correct boundary resizing  
 - preserved proportions  
+
+---
+
+### 🧱 Floating windows
+
+If a window cannot fit:
+- it is excluded from tiling  
+- layout remains valid  
+- no crashes  
+
+---
+
+### 🔔 OSD (On-Screen Display)
+
+- shows current layout name  
+- shows main ratio  
+- warnings:
+  - no space for window  
+  - too many windows  
+- throttled (no spam)  
 
 ---
 
@@ -125,6 +148,23 @@ Presets:
     1.5 → 2 → 3 → 1
 
 Used for controlling the **main vs secondary window proportions**.
+
+
+---
+### 🔀 Swap windows (directional)
+
+You can swap the active window with a neighboring window using directional shortcuts:
+
+| Shortcut | Action |
+|----------|--------|
+| Meta+Ctrl+Alt+Arrows | Swap windows (directional) |
+
+
+✔ works in all layouts (grid, left-main, top)  
+✔ respects layout structure  
+✔ keeps proportions stable  
+
+Useful for quickly reorganizing layout without using the mouse.
 
 ---
 
