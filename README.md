@@ -442,6 +442,41 @@ Installed to:
 
 ---
 
+## 🎞 Optional: Smooth window animations
+
+KLeftHandTiler does not provide animations by itself (by design — for performance and stability).
+
+If you want smooth animated transitions when windows resize or move, you can install the external KWin effect:
+
+👉 https://github.com/peterfajdiga/kwin4_effect_geometry_change
+
+---
+
+### 📦 Installation
+
+Download and extract the effect:
+
+wget https://github.com/peterfajdiga/kwin4_effect_geometry_change/releases/download/v1.5/kwin4_effect_geometry_change_1_5.tar.gz
+ -O /tmp/kwin4_effect_geometry_change_1_5.tar.gz && tar -xvzf /tmp/kwin4_effect_geometry_change_1_5.tar.gz -C ~/.local/share/kwin/effects/
+
+ ---
+
+### ⚙️ Enable the effect
+
+1. Open:
+
+   System Settings → Window Management → Desktop Effects
+
+2. Find:
+
+   **"Geometry Change"**
+
+3. Enable it ✅
+
+---
+
+
+
 ## 🤖 About
 
 Developed with AI assistance.  
