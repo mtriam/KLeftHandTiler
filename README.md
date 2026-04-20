@@ -157,7 +157,7 @@ Optional:
 | `Ctrl + Shift + F2`      | Cycle main ratio presets                    |
 | `Ctrl + Shift + F3`      | Cycle auto-retile mode (Off / Tiled only / Always) |
 | `Ctrl + Shift + F4`      | Toggle border mode                          |
-| `Shift + Ctrl + Esc`     | Rotate windows clockwise (keep focus)       |
+| `Shift + Ctrl + Esc`     | Rotate windows (keep focus)       |
 | `Ctrl + Esc`             | Cycle to next visible window                |
 
 ### Window Movement & Resizing
