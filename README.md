@@ -12,17 +12,29 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 
 ---
 
-## 🚀 What's new in v2.1
+## 🚀 What's new in v2.3
 
-- 🧠 Improved layout validation (safer geometry)
-- 🧩 Better grid + first-row logic
-- 🧱 Floating windows for non-fitting cases
-- 🛡 Crash prevention & safety checks
-- 🔄 Smarter auto-retile
-- ⚡ More stable live resize
-- 🧮 Better minimum size handling
-- 🔔 New OSD system (layout, ratio, warnings)
-- 🚫 Improved plasmashell/system window filtering
+- 🖥️ **Full Multi-Monitor Support** — each monitor now has completely independent tiling state (layout, ratios, window order, floating windows, etc.)
+- 💾 **Snapshots / Saved Layouts** — save and restore tiling or floating layouts (Ctrl+Shift+F5, F6, F7 + Cycle with Ctrl+Meta+`)
+- 🧩 **KWin Native Tiling Mode** — new mode accessible via Ctrl+Shift+F1 (cycles: Normal Tiling → KWin Tiling → Float All → Maximize All)
+- 🔄 **Window Rotation (All Modes)** — circular motion, keeps focus (Shift+Ctrl+Esc)
+- 🌊 **Improved Overflow Behavior** — multiple configurable overflow modes (float, move to other workspace, create new, minimize)
+- ⌨️ **Keyboard Shortcuts**:
+  - `Ctrl+Shift+F1` — Cycle tile modes (Normal / KWin / Float / Maximize)
+  - `Ctrl+Shift+F2` — Cycle main ratio presets
+  - `Ctrl+Shift+F3` — Cycle auto-retile mode
+- 🧱 **Better First Row Handling** — removed problematic Auto Grid mode that caused duplication; more predictable and stable layouts
+- 🪟 **Dialogs & Transient Windows** — significantly improved ignoring of dialogs, tooltips, and portal windows
+
+### 🛠️ Fixes
+
+- 🖥️ **Major Multi-Monitor Fix** — tiling now works correctly and independently on every screen
+- 🔀 **Fixed window leakage** between monitors
+- 🧠 **Fixed layout state sharing** between screens
+- 🪟 **Improved handling of dialogs and popups** (much fewer unwanted tiled dialogs)
+- ⚡ **Better stability** when adding/removing windows on secondary monitors
+- 🚀 **Various performance and cache improvements**
+
 ---
 
 ## 🎬 Preview
@@ -50,346 +62,223 @@ Optional:
 
 ## ✨ Features
 
-
-### 🧠 Layout engine
-
-- model-based (rows + ratios)  
-- stable and predictable  
-- safer geometry handling  
-
----
-
-### 🔄 Live resize
-
-- real-time layout updates  
-- affects only adjacent windows  
-- no global scaling  
-
----
-
-### 📐 Constraint-aware tiling
-
-- respects minimum window sizes  
-- prevents invalid layouts  
-- avoids overlaps and broken geometry  
-
----
-
-### 🧩 Left-main layouts
-
-- main + stack/grid  
-- correct boundary resizing  
-- preserved proportions  
-
----
-
-### 🧱 Floating windows
-
-If a window cannot fit:
-- it is excluded from tiling  
-- layout remains valid  
-- no crashes  
-
----
-
-### 🔔 OSD (On-Screen Display)
-
-- shows current layout name  
-- shows main ratio  
-- warnings:
-  - no space for window  
-  - too many windows  
-- throttled (no spam)  
-
----
-
-### ⚡ Smart auto-retile
-
-Triggers:
-- new window  
-- close  
-- minimize / restore  
-- desktop change  
-- activity change  
-
----
-
-### 🔁 Auto-retile modes
-
-| Mode       | Shortcut           | Behavior |
-|------------|------------------|----------|
-| OFF        | Ctrl+Shift+F2    | disabled |
-| Tiled only | Ctrl+Shift+F3    | skip if any window is maximized |
-| Always     | Ctrl+Shift+F4    | always retile |
-
----
-
-### 🧱 Adaptive layouts
-
-Cycle layouts:
-
-    Ctrl + Shift + `
-
-- adapts to window count  
-- main + stack / grid  
-
----
-
-### 📐 Ratio presets
-
-![preview](docs/preview_ratio.gif)
-
-Shortcut:
-
-    Ctrl + Shift + F1
-
-Presets:
-
-    1.5 → 2 → 3 → 1
-
-Used for controlling the **main vs secondary window proportions**.
-
-
----
-### 🔀 Swap windows (directional)
-
-You can swap the active window with a neighboring window using directional shortcuts:
-
-| Shortcut | Action |
-|----------|--------|
-| Meta+Ctrl+Alt+Arrows | Swap windows (directional) |
-
-
-✔ works in all layouts (grid, left-main, top)  
-✔ respects layout structure  
-✔ keeps proportions stable  
-
-Useful for quickly reorganizing layout without using the mouse.
-
----
-
-### 🖱 Drag-to-reorder
-
-    drag → drop near → reorder
-
----
-
-### 🧲 Sticky edges
-
-Snap windows to layout boundaries during resize.
-
----
-
-### 🎛 Visual tuning
-
-- window gaps  
-- screen margins  
-
----
-
-## 🚫 Ignore system (accurate)
-
-Window exclusion combines **user-defined rules** and **automatic filtering**.
-
----
-
-### 🔤 Keyword lists (user configuration)
-
-Configured in settings:
-
-- **tiling ignore list**
-- **cycling ignore list**
-
-Each entry is matched against:
-
-- window **caption (title)**
-- window **class (`resourceClass`)**
-- window **name (`resourceName`)**
-
-Matching:
-- case-insensitive  
-- substring-based  
-
-Examples:
-```
-settings
-print
-brave
-org.kde
-```
-
-✔ Match in **any field** excludes the window.
-
----
-
-### 🧩 Window property filtering (automatic)
-
-Ignored if:
-
-- not a normal window (`!normalWindow`)
-- unmanaged (`!managed`)
-- minimized
-- special window
-- dock
-- desktop window
-- skipTaskbar
-- popup
-- dialog
-- utility window
-- deleted
-
----
-
-### 🔗 Desktop & activity filtering
-
-Window must belong to:
-
-- current desktop  
-- current activity (unless `onAllActivities`)  
-
----
-
-### 🚫 Launcher detection
-
-Ignored automatically:
-
-- Plasma shell (`org.kde.plasmashell`)  
-- special + skipTaskbar + non-normal  
-
----
-
-### 🧲 Transient / modal filtering
-
-Optional (config):
-
-- transient windows  
-- modal dialogs  
-
-Controlled by:
-
-    ignoreTransientWindows
-
----
-
-### ⚙️ Behavior
-
-Ignored windows:
-
-- are excluded from layout  
-- may be automatically minimized (tiling ignore)  
-- are skipped during cycling  
+### 🧠 Layout Engine
+- Model-based tiling (rows + precise ratios)
+- Dynamic grid with intelligent first-row fitting
+- Constraint-aware (respects minimum window sizes)
+- Stable and predictable layouts
+- **Per-monitor independent layouts** (full multi-monitor support)
+
+### 🔄 Live Resize
+- Real-time layout updates during resize
+- Directional resize (keyboard + mouse)
+- Affects only adjacent windows
+- Precise edge detection with no jitter
+
+### ⌨️ Keyboard Control
+- Directional **move** (reposition in order)
+- Directional **swap** with neighbor
+- Directional **resize**
+- Window **rotation** (Shift+Ctrl+Esc)
+- Consistent behavior across all layouts and monitors
+
+### 👁 Live Preview & Drag-to-Reorder
+- Live preview while dragging windows
+- Position-based logic (swap vs insert)
+- Same behavior for keyboard and mouse
+- Hysteresis for stability (no flicker)
+
+### 🧩 Layout Modes & Presets
+- Adaptive layouts based on window count
+- Left Master + Grid mode
+- Ratio presets (Ctrl+Shift+F2)
+- **KWin Native Tiling mode** (Ctrl+Shift+F1)
+- Cycle between: Normal Tiling → KWin Tiling → Float All → Maximize All
+
+### 💾 Layout Snapshots
+- Save and restore tiling or floating layouts (3 slots)
+- Quick cycle through saved layouts
+- Works with both tiled and floating mode
+
+### 🪟 Floating Windows
+- Windows that don't fit are automatically floated
+- Manual toggle floating for any window
+- Auto-rejoin when space becomes available
+- Float All mode with quick restore
+
+### 🔄 Smart Auto-Retile
+- Automatically retile on:
+  - New window
+  - Window close
+  - Minimize / restore
+  - Desktop / activity change
+- Three modes: Off → Tiled only → Always (Ctrl+Shift+F3)
+
+### 📐 Ratios & Visual Tuning
+- Configurable main window ratio
+- Adjustable gaps and screen margins
+- Border mode control (tiled/floating/all)
+
+### 🖥 Multi-Monitor Support
+- Completely independent tiling per monitor
+- Correct window detection across screens
+- Proper usable area calculation per monitor
+- Independent state (order, ratios, floating) for each screen
+
+### 🛡️ Ignore System (very accurate)
+- Two separate ignore lists (tiling & cycling)
+- Matches caption, resourceClass, resourceName
+- Automatic filtering of dialogs, popups, portals, launchers
+- Optional auto-minimize for ignored windows
+
+### 🔔 OSD Notifications
+- Current layout name and ratio
+- Mode changes and warnings
+- Throttled to avoid spam
+
+### ⚡ Performance & Stability
+- Aggressive caching (geometry, visible windows, screen areas)
+- Coalesced rendering
+- Safe state cleanup
+- Robust recovery from broken layouts
 
 ---
 
 ## ⌨ Default shortcuts
 
-### 📐 Tiling
+## Keyboard Shortcuts
+
+### Core Tiling & Layout
+
+| Shortcut                  | Action                                      |
+|--------------------------|---------------------------------------------|
+| `Ctrl + ~`               | Smart Tile / Cycle layouts                  |
+| `Ctrl + Shift + F1`      | Cycle Tile Modes (Tiling → KWin Tiling → Float All → Maximize All) |
+| `Ctrl + Shift + F2`      | Cycle main ratio presets                    |
+| `Ctrl + Shift + F3`      | Cycle auto-retile mode (Off / Tiled only / Always) |
+| `Ctrl + Shift + F4`      | Toggle border mode                          |
+| `Shift + Ctrl + Esc`     | Rotate windows clockwise (keep focus)       |
+| `Ctrl + Esc`             | Cycle to next visible window                |
+
+### Window Movement & Resizing
+
+| Shortcut                    | Action                            |
+|----------------------------|-----------------------------------|
+| `Meta + Ctrl + Alt + ←→↑↓` | Swap window with neighbor         |
+| `Meta + Alt + Shift + ←→↑↓`| Move window in direction          |
+| `Ctrl + Shift + ←→↑↓`      | Resize                            |
+| `Meta + Alt + X`           | Grow active window                |
+| `Meta + Alt + Z`           | Shrink active window              |
+
+### Floating & Snapshots
+
+| Shortcut                  | Action                                      |
+|--------------------------|---------------------------------------------|
+| `CapsLock` (double tap)  | Toggle floating for active window           |
+| `Shift + CapsLock` (double tap) | Toggle Float All mode                   |
+| `Meta + Ctrl + Space`    | Tile all currently floating windows         |
+| `Ctrl + Shift + F5/F6/F7`| Save current layout to slot 1/2/3           |
+| `Ctrl + Meta + ``        | Cycle through saved layouts                 |
+| `Ctrl + Shift + Alt + F5/F6/F7` | Clear saved layout slot              |
+
+### Maximize & Minimize
+
+| Shortcut             | Action                                      |
+|---------------------|---------------------------------------------|
+| `Ctrl + ``          | Toggle maximize / minimize (double tap = minimize) |
+| `Ctrl + CapsLock` (double) | Toggle fullscreen                    |
+| `Ctrl + !`          | Restore last minimized window               |
+
+### KWin Integration
+
+| Shortcut         | Action                          |
+|------------------|---------------------------------|
+| `Ctrl + Alt + `` | Apply KWin native tiling mode   |
+
+### ⚠️ Plasma default shortcuts (no conflicts)
+
+KLeftHandTiler shortcuts are designed to **avoid conflicts with KDE Plasma defaults**.
+
+The following system shortcuts remain available:
 
 | Shortcut | Action |
 |----------|--------|
-| Ctrl+Shift+` | Tile / Cycle / double-tap → maximize |
-| Ctrl+Shift+F1 | Cycle ratio presets |
-| Ctrl+Shift+Esc | Rotate windows |
-
----
-
-### 🪟 Window control
-
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+` | Toggle maximize / double-tap → minimize |
-| Ctrl+CapsLock | Double-tap → fullscreen toggle |
-| Ctrl+Esc | Cycle visible windows |
-| Ctrl+! | Restore last minimized window |
-
----
-
-### 🔁 Layout manipulation
-
-| Shortcut | Action |
-|----------|--------|
-| Meta+Ctrl+Alt+Left  | Swap with left |
-| Meta+Ctrl+Alt+Right | Swap with right |
-| Meta+Ctrl+Alt+Up    | Swap with top |
-| Meta+Ctrl+Alt+Down  | Swap with bottom |
-| Meta+Alt+X          | Grow active window |
-| Meta+Alt+Z          | Shrink active window |
-
----
-
-### 🔄 Auto-retile
-
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+Shift+F2 | OFF |
-| Ctrl+Shift+F3 | Tiled only |
-| Ctrl+Shift+F4 | Always |
+| Meta+Ctrl+Arrows | Switch desktop |
+| Meta+Ctrl+Shift+Arrows | Move window to desktop |
+| Meta+Alt+Arrows | Focus window |
 
 ---
 
 ## ⚙️ Configuration
 
-Open:
+You can configure the script in:
 
-    System Settings → Window Management → KWin Scripts → KLeftHandTiler → Configure
-
----
-
-### Layout
-
-- default preset index  
-- auto-retile mode  
-- tile on start  
+**System Settings → Window Management → KWin Scripts → KLeftHandTiler → Configure**
 
 ---
 
-### Auto-retile triggers
-
-- new window  
-- window close  
-- minimize / restore  
-- desktop change  
-- activity change  
+### ⚠️ Important Note
+After changing any setting, you **must disable and then re-enable** the script for the changes to take effect.
 
 ---
 
-### Layout tuning
+### Default Behavior (New Desktop / Startup)
 
-- gap between windows  
-- screen margin  
-- reorder threshold  
+- **Default mode** — Tiled / KWin Tiling / Float All / Maximize All
+- **Default ratio preset** — 1.5 : 1.5, 2.0 : 2.0, 3.0 : 3.0, 1.0 : 1.0
+- **Auto-retile mode** — Off / Tiled only / Always
 
----
+### Decorations
 
-### Interaction
+- **Decoration mode**:
+  - Tiled windows without borders, floating with borders (default)
+  - All windows have borders
+  - No borders at all
 
-- double-tap threshold  
-- ignore transient windows  
+### Layout Limits
 
----
+- **Maximum tiled windows** per screen (default: 5)
+- **Overflow behavior** when limit is exceeded:
+  - Keep as floating
+  - Smart move to least busy desktop (or create new)
+  - Smart move forward only
+  - Move to empty desktop (or create new)
+- **Auto-remove empty desktops** created by the script
 
-### 🚫 Ignore configuration
+### Auto-Retile Triggers
 
-User-defined lists apply to:
+- New window
+- Window closed
+- Window minimized
+- Window restored
+- Desktop switch
+- Activity switch
 
-- window caption  
-- resourceClass  
-- resourceName  
+### Visual Settings
 
-Used for:
+- **Gap between windows** (default: 4 px)
+- **Screen margin** (default: 4 px)
+- **Double-tap threshold** (for CapsLock / Ctrl shortcuts)
 
-- tiling ignore  
-- cycling ignore  
+### Ignore System
 
----
+Two separate lists:
 
-### ⚠️ Important
+- **Ignore from tiling** — windows will not be tiled (can be auto-minimized)
+- **Ignore from cycling** — windows excluded from `Ctrl+Esc` cycling
 
-Configuration changes require reload:
+Matching is done against:
+- Window title (caption)
+- `resourceClass` (WM_CLASS)
+- `resourceName`
 
-    disable → enable KLeftHandTiler
+Additional options:
+- **Ignore transient windows** (dialogs, popups, tooltips)
+- **Minimize ignored windows**
 
----
+### Snapshot Behavior
+
+- Minimize windows that exceed layout after restoring from snapshot
 
 ## 📦 Installation
 

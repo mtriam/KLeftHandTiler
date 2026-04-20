@@ -2,9 +2,29 @@
 <kcfg xmlns="http://www.kde.org/standards/kcfg/1.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.kde.org/standards/kcfg/1.0 http://www.kde.org/standards/kcfg/1.0/kcfg.xsd">
     <kcfgfile name=""/>
     <group name="">
-        <entry name="allFloating" type="Bool">
-            <label>Start in floating mode (disable tiling)</label>
-            <default>false</default>
+        <entry name="defaultDesktopMode" type="Int">
+            <label>Default mode for startup/new desktop (Ctrl+Shift+F1: 0=tiled, 1=KWin tiling, 2=float all, 3=maximize all)</label>
+            <default>0</default>
+            <min>0</min>
+            <max>3</max>
+        </entry>
+        <entry name="defaultPresetIndex" type="Int">
+            <label>Default ratio preset for startup/new desktop (Ctrl+Shift+F2: 0=1.5:1.5, 1=2.0:2.0, 2=3.0:3.0, 3=1.0:1.0)</label>
+            <default>0</default>
+            <min>0</min>
+            <max>3</max>
+        </entry>
+        <entry name="autoRetileMode" type="Int">
+            <label>Default auto-retile mode (Ctrl+Shift+F3: 0=off, 1=tiled only, 2=always)</label>
+            <default>1</default>
+            <min>0</min>
+            <max>2</max>
+        </entry>
+        <entry name="decorationMode" type="Int">
+            <label>Default window decorations mode (Ctrl+Shift+F4: 0=tiled borderless/floating bordered, 1=all bordered, 2=all borderless)</label>
+            <default>0</default>
+            <min>0</min>
+            <max>2</max>
         </entry>
         <entry name="autoLayoutOnDesktopChange" type="Bool">
             <label>Automatically retile after switching virtual desktop</label>
@@ -31,13 +51,6 @@
             <default>true</default>
         </entry>
 
-        <entry name="autoRetileMode" type="Int">
-            <label>Auto-retile mode on startup (0=off, 1=tiled only, 2=always)</label>
-            <default>1</default>
-            <min>0</min>
-            <max>2</max>
-        </entry>
-
         <entry name="tileEvenIfNewMaximized" type="Bool">
             <label>Tile new windows even if they start maximized</label>
             <default>true</default>
@@ -49,45 +62,36 @@
             </whatsthis>
         </entry>
 
-        <!-- ZMIENIONE: borderMode → decorationMode -->
-        <entry name="decorationMode" type="Int">
-            <label>Window decorations (borders &amp; titlebar)</label>
-            <default>0</default>
-            <min>0</min>
-            <max>2</max>
+        <entry name="maxWindows" type="Int">
+            <default>5</default>
         </entry>
-
+        <entry name="overflowBehavior" type="Int">
+            <label>When windows exceed limit (0=float, 1=least busy, 2=forward least busy, 3=empty/new desktop)</label>
+            <default>2</default>
+            <min>0</min>
+            <max>3</max>
+        </entry>
+        <entry name="autoRemoveEmptyDesktops" type="Bool">
+            <default>true</default>
+        </entry>
+        <entry name="minimizeSnapshotOverflow" type="Bool">
+            <default>true</default>
+        </entry>
         <entry name="ignoreTransientWindows" type="Bool">
             <label>Ignore transient/modal windows (dialogs)</label>
             <default>true</default>
         </entry>
         <entry name="ignoreWordsTiling1" type="String">
             <label>Words to ignore from tiling (comma separated) – set 1</label>
-            <default>print,find,replace,confirm,settings,preferences,properties,org.kde.plasma-systemmonitor</default>
+            <default></default>
         </entry>
-
-        <entry name="ignoreWordsTiling2" type="String">
-            <label>Words to ignore from tiling (comma separated) – set 2</label>
-            <default>drukuj,znajdź,zamień,potwierdź,ustawienia,właściwości</default>
+        <entry name="minimizeIgnoredWindows" type="Bool">
+            <default>true</default>
         </entry>
-
         <entry name="ignoreWordsCycling1" type="String">
             <label>Words to ignore from cycling (Ctrl+Esc) (comma separated) – set 1</label>
             <default></default>
         </entry>
-
-        <entry name="ignoreWordsCycling2" type="String">
-            <label>Words to ignore from cycling (Ctrl+Esc) (comma separated) – set 2</label>
-            <default></default>
-        </entry>
-
-        <entry name="defaultPresetIndex" type="Int">
-            <label>Default ratio preset for new desktops/screens (0=1.5:1.5, 1=2.0:2.0, 2=3.0:3.0, 3=1.0:1.0)</label>
-            <default>0</default>
-            <min>0</min>
-            <max>3</max>
-        </entry>
-
         <entry name="doubleTapThresholdMs" type="Int">
             <label>Double-tap detection threshold (ms)</label>
             <default>300</default>

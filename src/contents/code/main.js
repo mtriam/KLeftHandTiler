@@ -7,19 +7,18 @@ registerShortcut("RestoreLastMinimized", "---Restore last minimized window", "Ct
 registerShortcut("CycleActiveWindow", "---Switch to next visible window", "Ctrl+Esc", cycleActiveWindow);
 registerShortcut("ToggleMaxOrMin", "---Toggle Maximize / double tap → Minimize", "Ctrl+`", ToggleMaxOrMin);
 registerShortcut("DoubleTapToggleFullscreen", "---Double Ctrl+CapsLock → toggle fullscreen", "Ctrl+CapsLock", handleDoubleTap);
-registerShortcut("RotateWindowsClockwiseKeepFocus","---Rotate windows clockwise (keep focus)", "Shift+Ctrl+Esc", rotateWindowsClockwiseKeepFocus);
-registerShortcut("cycleMainRatioPresets", "---Cycle main ratio presets", "Ctrl+Shift+F1", cycleMainRatioPresets);
+registerShortcut("RotateWindowsClockwiseKeepFocus","---Rotate windows clockwise (keep focus)", "Shift+Ctrl+Esc", rotateWindowsKeepFocus);
+registerShortcut("cycleMainRatioPresets", "---Cycle main ratio presets", "Ctrl+Shift+F2", cycleMainRatioPresets);
 registerShortcut("SmartTileOrCycle", "---Smart Tile / Cycle / DoubleTap Maximize", "Ctrl+~", smartTileHandler);
-registerShortcut("CycleAutoRetile","---Cycle auto-retile mode","Ctrl+Shift+F2",cycleAutoRetileMode);
+registerShortcut("CycleAutoRetile","---Cycle auto-retile mode","Ctrl+Shift+F3",cycleAutoRetileMode);
+registerShortcut("ToggleBorderMode","---Toggle border mode","Ctrl+Shift+F4",toggleBorderMode);
+registerShortcut("CycleTileModes","---Cycle tile → KWin tile → floatall","Ctrl+Shift+F1",cycleTileModes);
 registerShortcut("SwapWindowLeft",  "---Swap with left window",  "Meta+Ctrl+Alt+Left",  () => swapWindowInDirection("left"));
 registerShortcut("SwapWindowRight", "---Swap with right window", "Meta+Ctrl+Alt+Right", () => swapWindowInDirection("right"));
 registerShortcut("SwapWindowUp",    "---Swap with top window",   "Meta+Ctrl+Alt+Up",    () => swapWindowInDirection("top"));
 registerShortcut("SwapWindowDown",  "---Swap with bottom window","Meta+Ctrl+Alt+Down",  () => swapWindowInDirection("bottom"));
 registerShortcut("GrowActiveWindow", "---Grow active window", "Meta+Alt+X", growActiveWindow);
 registerShortcut("ShrinkActiveWindow", "---Shrink active window", "Meta+Alt+Z", shrinkActiveWindow);
-registerShortcut("CapsDoubleFloating", "---Double Caps → Toggle Floating", "CapsLock", handleDoubleTapCapsFloating);
-registerShortcut("ShiftCapsDoubleFloatAll","---Shift+Double Caps → Toggle Float All","Shift+CapsLock",handleDoubleTapShiftCapsFloatAll);
-//registerShortcut("ToggleFloating", "---Toggle floating window", "Meta+Shift+Space", toggleFloatingActiveWindow);
 registerShortcut("MoveWindowLeft",  "---Move window left",  "Meta+Alt+Shift+Left",  () => moveWindowInDirection("left"));
 registerShortcut("MoveWindowRight", "---Move window right", "Meta+Alt+Shift+Right", () => moveWindowInDirection("right"));
 registerShortcut("MoveWindowUp",    "---Move window up",    "Meta+Alt+Shift+Up",    () => moveWindowInDirection("top"));
@@ -28,17 +27,25 @@ registerShortcut("Resize Left", "---Resize Left", "Ctrl+Shift+Left", () => resiz
 registerShortcut("Resize Right", "---Resize Right", "Ctrl+Shift+Right", () => resizeActiveWindowDirectional(1, 0));
 registerShortcut("Resize Up", "---Resize Up", "Ctrl+Shift+Up", () => resizeActiveWindowDirectional(0, 1));
 registerShortcut("Resize Down", "---Resize Down", "Ctrl+Shift+Down", () => resizeActiveWindowDirectional(0, -1));
-registerShortcut("TileAllFloating","---Tile all floating windows","Meta+Ctrl+Space",tileAllFloatingWindows);
+registerShortcut("CapsDoubleFloating", "---Double Caps → Toggle Floating", "CapsLock", handleDoubleTapCapsFloating);
+registerShortcut("ShiftCapsDoubleFloatAll","---Shift+Double Caps → Toggle Float All","Shift+CapsLock",handleDoubleTapShiftCapsFloatAll);
 //registerShortcut("ToggleFloatAll","---Toggle tiling / floating mode","Meta+Shift+F",toggleFloatAll);
-registerShortcut("ToggleBorderMode","---Toggle border mode","Ctrl+Shift+F3",toggleBorderMode);
-
+//registerShortcut("ToggleFloating", "---Toggle floating window", "Meta+Shift+Space", toggleFloatingActiveWindow);
+registerShortcut("TileAllFloating","---Tile all floating windows","Meta+Ctrl+Space",tileAllFloatingWindows);
+registerShortcut("SaveFloatingLayout1", "---Save layout slot 1", "Ctrl+Shift+F5", () => saveFloatingLayoutToSlot(0));
+registerShortcut("SaveFloatingLayout2", "---Save layout slot 2", "Ctrl+Shift+F6", () => saveFloatingLayoutToSlot(1));
+registerShortcut("SaveFloatingLayout3", "---Save layout slot 3", "Ctrl+Shift+F7", () => saveFloatingLayoutToSlot(2));
+registerShortcut("CycleFloatingLayouts", "---Cycle floating layouts", "Ctrl+Meta+`", cycleFloatingLayouts);
+registerShortcut("ClearFloatingLayout1", "---Clear layout slot 1", "Ctrl+Shift+Alt+F5", () => clearFloatingLayout(0));
+registerShortcut("ClearFloatingLayout2", "---Clear layout slot 2", "Ctrl+Shift+Alt+F6", () => clearFloatingLayout(1));
+registerShortcut("ClearFloatingLayout3", "---Clear layout slot 3", "Ctrl+Shift+Alt+F7", () => clearFloatingLayout(2));
+registerShortcut("KWinTileApply","Apply KWin Tiling","Ctrl+Alt+`",() => applyKWinTiling());
 
 // ──────────────────────────────────────────────────────────────
 // CONFIGURATION
 // ──────────────────────────────────────────────────────────────
-const DEBUG = false;  // change to true for verbose logging
-const MAX_WINDOWS = 15;
-const LIVE_RESIZE_THROTTLE = 16;   // 50–80 idealne
+const DEBUG = false;  
+const LIVE_RESIZE_THROTTLE = 16;   // 50-80 is ideal
 const MAX_FIRST_ROW = 3;
 const RESIZE_STEP = 0.1;
 const MAIN_RATIO_PRESETS = [[1.5,1.5],[2.0,2.0],[3.0,3.0],[1.0,1.0]];
@@ -47,8 +54,24 @@ const MOVE_THRESHOLD = 0.18;
 const AREA_CACHE_TTL = 16; // ~1 frame (60fps)
 const GEO_CACHE_TTL = 16;
 const TILE_ON_START = false;
+const REORDER_SLOT_THRESHOLD = 0.35;
+const PREVIEW_THROTTLE_MS = 60;
 
+const TARGET_LOCK_THRESHOLD   = 0.22; 
+const TARGET_SWITCH_THRESHOLD = 0.38; 
+
+const CENTER_RATIO = 0.28; // swap zone (window percentage)
+const DEADZONE_PX  = 14;   // no reaction to micro-movements
+
+const OSD_DISPLAY_TIME = 500;
+
+
+const MAX_WINDOWS = readConfig("maxWindows", 5);
+const OVERFLOW_BEHAVIOR = readConfig("overflowBehavior", 2);
+const MINIMIZE_IGNORED_WINDOWS = readConfig("minimizeIgnoredWindows", true);
 const TILE_EVEN_IF_NEW_MAXIMIZED = readConfig("tileEvenIfNewMaximized", true);
+const AUTO_REMOVE_EMPTY_DESKTOPS = readConfig("autoRemoveEmptyDesktops", true);
+const MINIMIZE_SNAPSHOT_OVERFLOW = readConfig("minimizeSnapshotOverflow", true);
 const AUTO_LAYOUT_ON_DESKTOP_CHANGE = readConfig("autoLayoutOnDesktopChange", false);
 const AUTO_LAYOUT_ON_ACTIVITY_CHANGE = readConfig("autoLayoutOnActivityChange", false);
 const AUTO_LAYOUT_ON_NEW_WINDOW = readConfig("autoLayoutOnNewWindow", true);
@@ -58,25 +81,16 @@ const AUTO_LAYOUT_ON_WINDOW_RESTORE = readConfig("autoLayoutOnWindowRestore", tr
 const AUTO_RETILE_MODE = readConfig("autoRetileMode", 1); // 0=off, 1=tiled only, 2=always
 //const TILE_ON_START = readConfig("tileOnStart", false);
 const DEFAULT_PRESET_INDEX = readConfig("defaultPresetIndex", 0);
+const DEFAULT_DESKTOP_MODE = Math.max(0, Math.min(3, readConfig("defaultDesktopMode", 0))); // 0=tiled, 1=KWin, 2=float all, 3=max all
 const DOUBLE_TAP_THRESHOLD = readConfig("doubleTapThresholdMs", 300);
-const REORDER_SLOT_THRESHOLD = readConfig("reorderSlotThreshold", 0.35);
 const GAP = readConfig("gapBetweenWindows", 4);
 const MARGIN = readConfig("screenMargin", 4);
-const IGNORE_TILING_1 = readConfig("ignoreWordsTiling1", "print,find,replace,confirm,settings,preferences,properties,org.kde.plasma-systemmonitor").split(",");
-const IGNORE_TILING_2 = readConfig("ignoreWordsTiling2", "drukuj,znajdź,zamień,potwierdź,ustawienia,właściwości").split(",");
-const IGNORE_CYCLING_1 = readConfig("ignoreWordsCycling1", "").split(",");
-const IGNORE_CYCLING_2 = readConfig("ignoreWordsCycling2", "").split(",");
-var IGNORE_TRANSIENT_WINDOWS = readConfig("ignoreTransientWindows", true);
-
-let borderMode = readConfig("borderMode", 0); // 0 = tiled no border / floating border  1 = all border  2 = all no border
-
-const IGNORE_TILING = buildIgnoreList(
-    "ignoreWordsTiling1",
-    "ignoreWordsTiling2",
-    "print,find,replace,confirm,settings,preferences,properties,org.kde.plasma-systemmonitor",
-    "drukuj,znajdź,zamień,potwierdź,ustawienia,właściwości"
-);
-const IGNORE_CYCLING = buildIgnoreList("ignoreWordsCycling1", "ignoreWordsCycling2");
+const IGNORE_TILING = readConfig("ignoreWordsTiling1", "print,find,replace,confirm,settings,preferences,properties").split(",");
+const IGNORE_CYCLING = readConfig("ignoreWordsCycling1", "").split(",");
+const IGNORE_TRANSIENT_WINDOWS = readConfig("ignoreTransientWindows", true);
+let borderMode = Number(readConfig("decorationMode", readConfig("borderMode", 0))); // compat: old key `borderMode`
+if (!Number.isFinite(borderMode)) borderMode = 0;
+borderMode = Math.max(0, Math.min(2, Math.trunc(borderMode)));
 const IGNORED_RESOURCE_CLASSES = ["org.freedesktop.impl.portal.desktop.kde","org.freedesktop.portal.Desktop","xdg-desktop-portal"];
 const IGNORED_RESOURCE_NAMES = ["xdg-desktop-portal","xdg-desktop-portal-kde"];
 const EDGE_TOLERANCE = GAP + 6;
@@ -97,7 +111,6 @@ let resizeThrottleTimer = null;
 let lastResizeClient = null;
 let lastResizeGeometry = null;
 let resizeEdges = new Map();
-//let floatingWindows = new Set();
 let lastDesktopId = null;
 let lastResizeTime = 0
 
@@ -127,45 +140,294 @@ let rafTimer = null;
 
 
 const workspaceState = {};
-const layoutModels = {};          // key → model
+const layoutModels = {};          
 const layoutMeta = {};
 const floatingWindowsMap = {};
+let floatingLayouts = [null, null, null];
+let currentLayoutIndex = -1;
+let _sanitizeLock = false;
+
 
 
 let resizeState = new Map();          // win → { tX, tY }
 let resizeOriginRect = new Map();     // win → origin
-let lastAppliedGeometry = new Map();  // do wykrywania manual change
+let lastAppliedGeometry = new Map();  // for detecting manual changes
 let lastInternalResizeTime = new Map(); // win → timestamp ms
 let autoFloating = new Set();
 let lastFreedSlot = null;
+let managedDesktops = new Set();
+let _cleanupDesktopsLock = false;
 
+
+let previewTimer = null;
+let lastPreviewTime = 0;
+let lastPreviewSignature = null;
+
+let previewActive = false;
+let previewOrderBackup = null;
+
+let lockedTarget = null;
+let lockedTargetIndex = -1;
+let lastDropDecision = null;
+let baseGeometries = null;
+
+let osdQueue = [];
+let osdProcessing = false;
+
+let _desktopSwitchTs = 0;
+let _lastRelayoutRunTs = 0;
+let _windowTokenSeq = 1;
+const _windowTokens = new Map();
+
+let accumulatedHeightDelta = 0;
+let accumulatedWidthDelta   = 0;
+
+let lastScreenCount = workspace.screens?.length ?? 0;
+let cachedScreenId = null;
+let _screenContextOverride = null;
+
+const minimizedStacks = {};   
 const states = {};
+
+
+
+function applyKWinTiling(options = {}) {
+    const screen = normalizeScreenTarget(options.screen);
+    const screenId = getScreenIdForTarget(screen);
+    const desktop = options.desktop || workspace.currentDesktop;
+
+    if (DEBUG) {
+        print(`[KWIN APPLY] source=${options.source || "manual"} screen=${screenId} active=${getScreenIdForTarget(workspace.activeScreen)}`);
+    }
+
+    return withScreenContext(screen, () => {
+        const state = getCurrentState();
+        const wasFloating = state.allFloating;
+
+        state.kwinTilingActive = true;
+        state.allFloating = true;
+
+        const root = workspace.rootTile(screen, desktop);
+
+        if (!root) {
+            if (DEBUG) print(`[KWIN APPLY] no root tile for screen=${screenId}`);
+            showOSDSafe("KWin tiling applied", "view-grid");
+            return;
+        }
+
+        showOSDSafe("KWin tiling mode", "view-grid");
+
+        if (!wasFloating) {
+            resetPreview();
+            resizeEdges.clear();
+            manualResizeInProgress = false;
+            movingWindow = null;
+        }
+
+        let windows = getVisibleWindows()
+            .filter(w => w && !w.deleted && !w.minimized && !w.skipTaskbar);
+
+
+        function collectLeaves(tile, out = []) {
+            if (tile.tiles && tile.tiles.length > 0) {
+                tile.tiles.forEach(child => collectLeaves(child, out));
+            } else {
+                out.push(tile);
+            }
+            return out;
+        }
+
+        const leaves = collectLeaves(root);
+        const limit = leaves.length;
+
+        if (DEBUG) {
+            print("KWIN APPLY:");
+            print("windows:", windows.length);
+            print("tiles:", limit);
+            if (windows.length === 0) {
+                const sample = workspace.windowList().filter(w => w && !w.deleted).slice(0, 6);
+                for (let w of sample) {
+                    debugWindowVisibility(w, "kwin-apply/sample");
+                }
+            }
+        }
+
+        if (windows.length > limit) {
+
+            const overflow = windows.slice(limit);
+
+            if (DEBUG) {
+                print("KWIN OVERFLOW:", overflow.length);
+            }
+
+            overflow.forEach(w => {
+                getFloatingSet().add(w);
+                if (typeof autoFloating !== "undefined") {
+                    autoFloating.add(w);
+                }
+
+                moveWindowToOverflow(w);
+            });
+
+            windows = windows.slice(0, limit);
+        }
+
+        // =========================================================
+        // 🔥 RESET TILE
+        // =========================================================
+        windows.forEach(w => {
+            if (!w || !w.tile) return;
+
+            try {
+                w.tile.unmanage(w);
+            } catch (e) {
+                // noop: do not write to `window.tile` (deprecated in KWin)
+            }
+        });
+
+        // =========================================================
+        // 🔥 SORT
+        // =========================================================
+        windows.sort((a, b) => (a.stackingOrder || 0) - (b.stackingOrder || 0));
+
+        const count = Math.min(windows.length, leaves.length);
+
+        if (count === 0) return;
+
+        // =========================================================
+        // 🔥 APPLY TILE
+        // =========================================================
+        for (let i = 0; i < count; i++) {
+            const w = windows[i];
+            const tile = leaves[i];
+
+            if (!w || w.deleted) continue;
+
+            workspace.activeWindow = w;
+
+            tile.manage(w);
+
+            w.fullScreen = false;
+
+            getFloatingSet().delete(w);
+            if (typeof autoFloating !== "undefined") {
+                autoFloating.delete(w);
+            }
+        }
+
+        clearLayoutModel();
+        state._layoutDirty = false;
+
+        _visibleCache = null;
+        applyBorderMode();
+    });
+}
+
+function cycleTileModes() {
+    const state = getCurrentState();
+    const visible = getVisibleWindows().filter(w => !w.deleted && !w.minimized);
+
+    const isMaximizedAll = state.maximizedAll || 
+                          (visible.length > 0 && visible.every(w => w.maximizeMode !== 0));
+
+    // 1. Maximize All -> return to Normal Tiling
+    if (isMaximizedAll) {
+        unmaximizeAll();
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        scheduleRelayout(0);
+        return;
+    }
+
+    // 2. KWin Tiling → All Floating
+    if (state.kwinTilingActive) {
+        toggleFloatAll(true); // force on (disables KWin tiling if active)
+        state.maximizedAll = false;
+        return;
+    }
+
+    // 3. All Floating → Maximize All
+    if (state.allFloating) {
+        toggleFloatAll(false, { showOSD: false }); // force off (without "Tiling mode" flash)
+        maximizeAll();
+        return;
+    }
+
+    // 4. Normal Tiling (or no mode) -> enable KWin Tiling
+    applyKWinTiling();
+}
+
+function disableKWinTiling() {
+    const state = getCurrentState();
+
+    getVisibleWindows().forEach(w => {
+        if (!w || w.deleted || w.minimized || !w.tile) return;
+
+        try {
+            w.tile.unmanage(w);
+        } catch (e) {
+        }
+    });
+
+    state.kwinTilingActive = false;
+}
+
+
+// ====================== MAXIMIZE ALL ======================
+function maximizeAll() {
+    const visible = getVisibleWindows().filter(w => !w.deleted && !w.minimized);
+    const state = getCurrentState();
+
+    visible.forEach(w => {
+        if (w.maximizable) {
+            w.setMaximize(true, true);
+        }
+    });
+
+    state.maximizedAll = true;
+    state.kwinTilingActive = false;
+    state.allFloating = false;
+
+    showOSDSafe("Maximize All", "view-fullscreen");
+}
+
+function unmaximizeAll() {
+    const visible = getVisibleWindows().filter(w => !w.deleted && !w.minimized);
+    const state = getCurrentState();
+
+    visible.forEach(w => {
+        if (w.maximizable) {
+            w.setMaximize(false, false);
+        }
+    });
+
+    state.maximizedAll = false;
+    showOSDSafe("Tiling mode", "view-grid");
+}
 
 
 // =====================================================
 // HELPER FUNCTIONS
 // =====================================================
 function getWS() {
-
     const key = getStateKey();
 
     if (!workspaceState[key]) {
-
         const preset = MAIN_RATIO_PRESETS[DEFAULT_PRESET_INDEX];
 
         workspaceState[key] = {
-
             layoutModel: null,
-
             layoutMeta: {
                 force: false
             },
-
             floating: new Set(),
 
             state: {
                 autoRetileMode: AUTO_RETILE_MODE,
-                allFloating: !!readConfig("allFloating", false),
+                allFloating: false,
+                kwinTilingActive: false,      // added for safety
+                maximizedAll: false,          // ← NEW STATE
+                _defaultModeApplied: false,
                 _layoutDirty: true,
 
                 lastTiledOrder: [],
@@ -178,7 +440,6 @@ function getWS() {
 
     return workspaceState[key];
 }
-
 
 function isFloating(win) {
     const set = getFloatingSet();
@@ -213,7 +474,7 @@ function getFloatingSet() {
 }
 
 function getLayoutKey() {
-    return getStateKey(); // już masz: activity:desktop:screen
+    return getStateKey(); // already has: activity:desktop:screen
 }
 
 function getLayoutModel() {
@@ -238,34 +499,6 @@ function consumeForceRebuild() {
     meta.force = false;
     return val;
 }
-
-function buildIgnoreList(key1, key2, def1, def2) {
-
-    const out = [];
-
-    let raw1 = readConfig(key1, def1);
-    let raw2 = readConfig(key2, def2);
-
-    if (typeof raw1 !== "string") raw1 = def1 || "";
-    if (typeof raw2 !== "string") raw2 = def2 || "";
-
-    const all = (raw1 + "," + raw2).split(",");
-
-    for (let i = 0; i < all.length; i++) {
-
-        let s = all[i];
-        if (!s) continue;
-
-        s = s.trim().toLowerCase();
-
-        if (s.length > 0 && out.indexOf(s) === -1) {
-            out.push(s);
-        }
-    }
-
-    return out;
-}
-
 
 
 // ──────────────────────────────────────────────────────────────
@@ -304,34 +537,124 @@ function getCurrentActivityId() {
 }
 
 
+function normalizeScreenTarget(screenTarget) {
+    const screens = workspace.screens || [];
+
+    if (typeof screenTarget === "number" && isFinite(screenTarget)) {
+        const idx = Math.trunc(screenTarget);
+        if (idx >= 0 && idx < screens.length) return screens[idx];
+        if (DEBUG) print(`[SCREEN] normalize fallback: requested index=${screenTarget} count=${screens.length}`);
+        return workspace.activeScreen || screens[0] || null;
+    }
+
+    if (screenTarget) return screenTarget;
+    return workspace.activeScreen || screens[0] || null;
+}
+
+function getScreenIdForTarget(screenTarget) {
+    const screens = workspace.screens || [];
+    const target = normalizeScreenTarget(screenTarget);
+
+    for (let i = 0; i < screens.length; i++) {
+        if (screens[i] === target) return i;
+    }
+
+    if (typeof screenTarget === "number" && isFinite(screenTarget)) {
+        const idx = Math.trunc(screenTarget);
+        return idx >= 0 ? idx : 0;
+    }
+
+    return 0;
+}
+
+function getEffectiveScreenTarget() {
+    if (_screenContextOverride !== null && _screenContextOverride !== undefined) {
+        return normalizeScreenTarget(_screenContextOverride);
+    }
+    return normalizeScreenTarget(workspace.activeScreen);
+}
+
+function getEffectiveScreenId() {
+    return getScreenIdForTarget(getEffectiveScreenTarget());
+}
+
+function withScreenContext(screenTarget, fn) {
+    const prev = _screenContextOverride;
+    _screenContextOverride = normalizeScreenTarget(screenTarget);
+    try {
+        return fn();
+    } finally {
+        _screenContextOverride = prev;
+    }
+}
+
+function getScreenForWindow(win, desktopObj = getCurrentDesktopForAPI()) {
+    if (!win || win.deleted || !win.frameGeometry) {
+        return getEffectiveScreenTarget();
+    }
+
+    const screens = workspace.screens || [];
+    const outputs = screens.length > 0 ? screens : [normalizeScreenTarget(workspace.activeScreen)];
+    if (!outputs[0]) return normalizeScreenTarget(workspace.activeScreen);
+    const geo = win.frameGeometry;
+    const cx = geo.x + geo.width / 2;
+    const cy = geo.y + geo.height / 2;
+
+    let nearest = outputs[0];
+    let nearestId = getScreenIdForTarget(outputs[0]);
+    let nearestDist = Infinity;
+
+    for (let i = 0; i < outputs.length; i++) {
+        const output = outputs[i];
+        const area = workspace.clientArea(KWin.FullScreenArea, output, desktopObj);
+        const inside =
+            cx >= area.x &&
+            cx < area.x + area.width &&
+            cy >= area.y &&
+            cy < area.y + area.height;
+
+        if (inside) {
+            if (DEBUG) print(`[SCREEN] window "${win.caption || win.resourceClass || "?"}" -> screen ${i} (inside)`);
+            return output;
+        }
+
+        const ax = area.x + area.width / 2;
+        const ay = area.y + area.height / 2;
+        const dist = Math.hypot(cx - ax, cy - ay);
+
+        if (dist < nearestDist) {
+            nearestDist = dist;
+            nearest = output;
+            nearestId = i;
+        }
+    }
+
+    if (DEBUG) print(`[SCREEN] window "${win.caption || win.resourceClass || "?"}" -> screen ${nearestId} (nearest fallback)`);
+    return nearest;
+}
+
+
 
 function getStateKey() {
     const activityId = getCurrentActivityId();
     const desktopId = getCurrentDesktopIdentifier();
-
-    let screenId = workspace.activeScreen;
-
-    const screens = workspace.screens || [];
-
-    if (typeof screenId !== 'number' || screenId < 0 || screenId >= screens.length) {
-        screenId = 0;
-    }
+    const screenId = getEffectiveScreenId();
 
     return `${activityId}:${desktopId}:${screenId}`;
 }
 
 function getWorkspaceKey() {
-    return getCurrentDesktopIdentifier() + "_" + workspace.activeScreen;
+    return getCurrentDesktopIdentifier() + "_" + getEffectiveScreenId();
 }
 
 
 function getCurrentDesktopForAPI() {
     const d = workspace.currentDesktop;
 
-    // Plasma 6 → obiekt OK
+    // Plasma 6 
     if (typeof d === "object") return d;
 
-    // fallback (starsze)
+    // fallback
     return d;
 }
 
@@ -370,7 +693,7 @@ function getAreaCacheKey() {
     return (
         getCurrentActivityId() + ":" +
         getCurrentDesktopIdentifier() + ":" +
-        workspace.activeScreen
+        getEffectiveScreenId()
     );
 }
 
@@ -390,7 +713,7 @@ function getUsableArea() {
 
     const area = workspace.clientArea(
         KWin.FullScreenArea,
-        workspace.activeScreen,
+        getEffectiveScreenTarget(),
         getCurrentDesktopForAPI()
     );
 
@@ -424,7 +747,7 @@ function getFullArea() {
 
     const result = workspace.clientArea(
         KWin.FullScreenArea,
-        workspace.activeScreen,
+        getEffectiveScreenTarget(),
         getCurrentDesktopForAPI()
     );
 
@@ -455,7 +778,6 @@ function getLastTiledOrder() {
 
     const visible = getVisibleWindows();
 
-    // 🔥 HARD CLEANUP
     state.lastTiledOrder = state.lastTiledOrder.filter(w =>
         w &&
         !w.deleted &&
@@ -478,7 +800,7 @@ function getTopRatio() {
 function setTopRatio(value) { getCurrentState().topRatio = value; }
 function getFirstRowWindowsMode() {
     const s = getCurrentState();
-    return s.firstRowMode ?? 0;
+    return s.firstRowMode ?? -1;
 }
 function setFirstRowWindowsMode(value){ getCurrentState().firstRowMode = value; }
 
@@ -500,11 +822,910 @@ function setLastTiledOrder(order) {
     );
 
     getCurrentState().lastTiledOrder = clean;
-    // 🔥 cleanup autoFloating dla okien które są już tiled
+
     for (let w of clean)  {
         autoFloating.delete(w);
     }
 }
+
+//──────────────────────────────────────────────────────────────
+// DESKTOPS PLASMA 6 WAYLAND
+//──────────────────────────────────────────────────────────────
+function getOtherDesktop() {
+    const desktops = workspace.desktops || [];
+    const current = workspace.currentDesktop;
+    for (let d of desktops) {
+        if (d !== current) return d;
+    }
+    return null;
+}
+
+function createNewDesktop(callback) {
+    if (DEBUG) print("CREATE DESKTOP");
+
+    function finalize(d) {
+        if (!d) {
+            callback && callback(null);
+            return;
+        }
+
+        const id = getDesktopIdSafe(d);
+        if (id != null) {
+            managedDesktops.add(id);
+        }
+
+        callback && callback(d);
+    }
+
+    // 🔹 Primary (Plasma 6)
+    if (typeof workspace.createDesktop === "function") {
+        const d = workspace.createDesktop(-1, "");
+
+        if (d) {
+            let t = new QTimer();
+            t.singleShot = true;
+            t.interval = 120;
+
+            t.timeout.connect(() => {
+                t.stop();
+                finalize(d);
+            });
+
+            t.start();
+            return;
+        }
+    }
+
+    // 🔹 Fallback
+    const target = (workspace.numberOfDesktops || 1) + 1;
+    workspace.numberOfDesktops = target;
+
+    let t = new QTimer();
+    t.singleShot = true;
+    t.interval = 150;
+
+    t.timeout.connect(() => {
+        t.stop();
+
+        const list = workspace.desktops || [];
+        const d = list[list.length - 1] || null;
+
+        finalize(d);
+    });
+
+    t.start();
+}
+
+function countWindowsOnDesktop(desktop) {
+    if (!desktop) return 0;
+
+    const deskId = getDesktopIdSafe(desktop);
+    const currentActivity = workspace.currentActivity;
+    const screenGeo = getFullArea();
+
+    return workspace.windowList().filter(w => {
+        if (!w ||
+            !w.normalWindow ||
+            !w.managed ||
+            w.minimized ||
+            w.specialWindow ||
+            w.dock ||
+            w.desktopWindow ||
+            w.skipTaskbar ||
+            w.popup ||
+            w.dialog ||
+            w.utilityWindow ||
+            w.deleted ||
+            matchesIgnoreList(w, IGNORE_TILING)
+        ) {
+            return false;
+        }
+
+        if (currentActivity &&
+            !w.onAllActivities &&
+            !w.activities.includes(currentActivity)) {
+            return false;
+        }
+
+        if (!windowOnCurrentDesktop(w, deskId)) return false;
+
+        const geo = getCachedGeometry(w);
+        const centerX = geo.x + geo.width / 2;
+        const centerY = geo.y + geo.height / 2;
+
+        return centerX >= screenGeo.x &&
+               centerX <  screenGeo.x + screenGeo.width &&
+               centerY >= screenGeo.y &&
+               centerY <  screenGeo.y + screenGeo.height;
+    }).length;
+}
+
+function getSafeDesktopForOverflow() {
+    const desktops = workspace.desktops || [];
+    const current = workspace.currentDesktop;
+
+    let best = null;
+    let bestCount = Infinity;
+
+    for (let d of desktops) {
+        if (!d) continue;
+        if (d === current) continue;
+
+        const count = countWindowsOnDesktop(d);
+
+        if (count >= MAX_WINDOWS) continue;
+
+        if (count < bestCount) {
+            best = d;
+            bestCount = count;
+        }
+    }
+
+    return best;
+}
+
+function getBestDesktop() {
+
+    const desktops = workspace.desktops || [];
+    const current = workspace.currentDesktop;
+
+    let best = null;
+    let bestCount = Infinity;
+
+    for (let d of desktops) {
+        if (!d) continue;
+
+        if (d === current) continue;
+
+        const count = countWindowsOnDesktop(d);
+
+        if (count >= MAX_WINDOWS) continue;
+
+        if (count < bestCount) {
+            best = d;
+            bestCount = count;
+        }
+    }
+
+    return best;
+}
+
+
+function cleanupEmptyDesktops() {
+    if (_cleanupDesktopsLock) return;
+    _cleanupDesktopsLock = true;
+
+    try {
+        const desktops = workspace.desktops || [];
+        if (desktops.length <= 1) return;
+
+        const current = workspace.currentDesktop;
+
+        for (let d of desktops) {
+            if (!d) continue;
+
+            const id = getDesktopIdSafe(d);
+
+            if (!managedDesktops.has(id)) continue;
+
+            if (d === current) continue;
+
+            const count = countWindowsOnDesktop(d);
+
+            if (count === 0) {
+
+                if (DEBUG) print("Removing empty desktop:", id);
+
+                workspace.removeDesktop(d);
+                managedDesktops.delete(id);
+            }
+        }
+    } finally {
+        _cleanupDesktopsLock = false;
+    }
+}
+
+function moveWindowToOverflow(win, options) {
+    const mode = OVERFLOW_BEHAVIOR;
+    if (!win || win.deleted) return;
+    const source = (options && options.source) ? options.source : "relayout";
+
+    function showOverflowOSD(type, desktop) {
+        let msg = `Workspace full (${MAX_WINDOWS})`;
+
+        let idx = null;
+        try {
+            const list = workspace.desktops || [];
+            const i = list.indexOf(desktop);
+            if (i !== -1) idx = i + 1;
+        } catch (e) {}
+
+        const suffix = idx ? ` (#${idx})` : "";
+
+        if (type === "float") {
+            msg += "\n→ Floating window";
+        } else if (type === "other") {
+            msg += `\n→ Sent to another workspace${suffix}`;
+        } else if (type === "forward") {
+            msg += `\n→ Sent to next workspace${suffix}`;
+        } else if (type === "empty") {
+            msg += `\n→ Sent to empty workspace${suffix}`;
+        } else if (type === "new") {
+            msg += `\n→ New workspace created${suffix}`;
+        } else if (type === "minimize") {
+            msg += "\n→ Minimized window";
+        } else {
+            msg += `\n→ Reassigned${suffix}`;
+        }
+
+        showOSDSafe(msg, "dialog-warning");
+    }
+
+    // ───── MODE 0 ─────
+    if (mode === 0) {
+        getFloatingSet().add(win);
+        autoFloating.add(win);
+
+        showOverflowOSD("float");
+        return;
+    }
+
+    function removeFromLayout(w) {
+        let order = getLastTiledOrder();
+        const idx = order.indexOf(w);
+        if (idx !== -1) {
+            order.splice(idx, 1);
+            setLastTiledOrder(order);
+        }
+    }
+
+    function getDesktops() {
+        return workspace.desktops || [];
+    }
+
+    function getDesktopIndex(d) {
+        return getDesktops().indexOf(d);
+    }
+
+    // 🔥 forward-only least busy
+    function getSafeDesktopForward() {
+        const desktops = getDesktops();
+        const current = workspace.currentDesktop;
+        const currentIdx = getDesktopIndex(current);
+
+        let best = null;
+        let bestCount = Infinity;
+
+        for (let i = currentIdx + 1; i < desktops.length; i++) {
+            const d = desktops[i];
+            if (!d) continue;
+
+            const count = countWindowsOnDesktop(d);
+            if (count >= MAX_WINDOWS) continue;
+
+            if (count < bestCount) {
+                best = d;
+                bestCount = count;
+            }
+        }
+
+        return best;
+    }
+
+    function findEmptyDesktop() {
+        const desktops = getDesktops();
+
+        for (let d of desktops) {
+            if (!d) continue;
+            if (countWindowsOnDesktop(d) === 0) return d;
+        }
+
+        return null;
+    }
+
+    function moveAndFocus(w, desktop, osdType) {
+        removeFromLayout(w);
+
+        getFloatingSet().delete(w);
+        autoFloating.delete(w);
+
+        w.desktops = [desktop];
+
+        workspace.currentDesktop = desktop;
+        workspace.activeWindow = w;
+        workspace.raiseWindow(w);
+
+        showOverflowOSD(osdType, desktop);
+
+        let t = new QTimer();
+        t.interval = 100;
+
+        t.timeout.connect(() => {
+            t.stop();
+            _visibleCache = null;
+            clearLayoutModel();
+            scheduleRelayout(0);
+        });
+
+        t.start();
+    }
+
+    function minimizeOverflow(w) {
+        removeFromLayout(w);
+        getFloatingSet().delete(w);
+        autoFloating.delete(w);
+
+        if (w.minimizable) {
+            w.minimized = true;
+            pushToMinimizedStack(w);
+            showOverflowOSD("minimize");
+        } else {
+            getFloatingSet().add(w);
+            autoFloating.add(w);
+            showOverflowOSD("float");
+        }
+
+        _visibleCache = null;
+        clearLayoutModel();
+        scheduleRelayout(0);
+    }
+
+    // // =========================================================
+    // // MODE 4 — minimize
+    // // =========================================================
+    // if (mode === 4) {
+    //     if (source === "new_window") {
+    //         getFloatingSet().add(win);
+    //         autoFloating.add(win);
+    //         showOverflowOSD("float");
+    //         return;
+    //     }
+
+    //     if (DEBUG) print("MODE4 → MINIMIZE");
+    //     minimizeOverflow(win);
+    //     return;
+    // }
+
+    // =========================================================
+    // MODE 1 — least busy (global)
+    // =========================================================
+    if (mode === 1) {
+        const target = getSafeDesktopForOverflow();
+
+        if (target) {
+            if (DEBUG) print("MODE1 → SAFE:", getDesktopIdSafe(target));
+            moveAndFocus(win, target, "other");
+            return;
+        }
+
+        if (DEBUG) print("MODE1 → fallback");
+    }
+
+    // =========================================================
+    // MODE 2 — least busy FORWARD ONLY
+    // =========================================================
+    if (mode === 2) {
+        const target = getSafeDesktopForward();
+
+        if (target) {
+            if (DEBUG) print("MODE2 → FORWARD:", getDesktopIdSafe(target));
+            moveAndFocus(win, target, "forward");
+            return;
+        }
+
+        if (DEBUG) print("MODE2 → no forward → create new");
+
+        createNewDesktop((_) => {
+            if (!win || win.deleted) return;
+
+            const list = workspace.desktops || [];
+            const target = list[list.length - 1];
+            if (!target) return;
+
+            moveAndFocus(win, target, "new");
+        });
+
+        return;
+    }
+
+    // =========================================================
+    // MODE 3 — empty / create
+    // =========================================================
+    if (mode === 3) {
+        const empty = findEmptyDesktop();
+
+        if (empty) {
+            if (DEBUG) print("MODE3 → EMPTY:", getDesktopIdSafe(empty));
+            moveAndFocus(win, empty, "empty");
+            return;
+        }
+
+        if (DEBUG) print("MODE3 → create new");
+
+        createNewDesktop((_) => {
+            if (!win || win.deleted) return;
+
+            const list = getDesktops();
+            const target = list[list.length - 1];
+            if (!target) return;
+
+            moveAndFocus(win, target, "new");
+        });
+
+        return;
+    }
+
+    // =========================================================
+    // 🔥 FINAL FALLBACK
+    // =========================================================
+
+    const best = getBestDesktop();
+    if (best) {
+        if (DEBUG) print("FALLBACK → BEST:", getDesktopIdSafe(best));
+        moveAndFocus(win, best, "other");
+        return;
+    }
+
+    const empty = findEmptyDesktop();
+    if (empty) {
+        if (DEBUG) print("FALLBACK → EMPTY:", getDesktopIdSafe(empty));
+        moveAndFocus(win, empty, "empty");
+        return;
+    }
+
+    if (DEBUG) print("FALLBACK → CREATE NEW");
+
+    createNewDesktop((_) => {
+        if (!win || win.deleted) return;
+
+        const list = getDesktops();
+        const target = list[list.length - 1];
+        if (!target) return;
+
+        moveAndFocus(win, target, "new");
+    });
+}
+
+let _rebalanceLock = false;
+
+function rebalanceOverflow() {
+    if (_rebalanceLock) return;
+    _rebalanceLock = true;
+
+    try {
+        if (!canAutoRetile()) return;
+
+        const { ordered, visible } = getTiledOrder();
+        if (!ordered || visible.length <= MAX_WINDOWS) return;
+
+        const tooMany = ordered.slice(MAX_WINDOWS);
+        const newOrder = ordered.slice(0, MAX_WINDOWS);
+
+        for (let w of tooMany) {
+            if (!w || w.deleted) continue;
+            getFloatingSet().add(w);
+            autoFloating.add(w);
+            moveWindowToOverflow(w);
+        }
+
+        setLastTiledOrder(newOrder);
+        _visibleCache = null;
+        clearLayoutModel();
+        getCurrentState()._layoutDirty = true;
+
+        if (DEBUG) print(`Rebalanced overflow: ${tooMany.length} windows moved`);
+    } finally {
+        _rebalanceLock = false;
+    }
+}
+
+
+function sanitizeFloatingBeforeTiling() {
+    if (!canAutoRetile()) return;
+
+    const currentDeskId = getCurrentDesktopIdentifier();
+    const floating = Array.from(getFloatingSet())
+        .filter(w =>
+            w &&
+            !w.deleted &&
+            w.desktops &&
+            w.desktops.some(d => getDesktopIdSafe(d) === currentDeskId)
+        );
+
+    if (floating.length <= MAX_WINDOWS) return;
+
+    if (DEBUG) print("SANITIZE: too many floating windows:", floating.length);
+
+    const overflow = floating.slice(MAX_WINDOWS);
+    for (let w of overflow) {
+        if (!w || w.deleted) continue;
+        if (DEBUG) print("SANITIZE → moving to overflow:", w.caption || w.resourceClass);
+        autoFloating.add(w);
+        moveWindowToOverflow(w);
+    }
+}
+
+//-----------------------snapshots-----------------------------
+function getWindowSnapshotId(w) {
+    if (!w) return null;
+    const cls = (w.resourceClass || "").toLowerCase();
+    const name = (w.resourceName || "").toLowerCase();
+    const cap = (w.caption || "").toLowerCase();
+    return `${cls}|${name}|${cap}`;
+}
+
+function cycleFloatingLayouts() {
+    const available = floatingLayouts
+    .map((l, i) => l ? i : null)
+    .filter(i => i !== null);
+    if (available.length === 0) {
+        showOSDSafe("No saved layouts", "dialog-warning");
+        return;
+    }
+    let idx = available.indexOf(currentLayoutIndex);
+    idx = (idx + 1) % available.length;
+    const nextSlot = available[idx];
+    currentLayoutIndex = nextSlot;
+    restoreFloatingLayoutFromSlot(nextSlot);
+}
+
+function clearFloatingLayout(slot) {
+    floatingLayouts[slot] = null;
+    if (currentLayoutIndex === slot) currentLayoutIndex = -1;
+    showOSDSafe(`Cleared slot ${slot + 1}`, "edit-clear");
+}
+
+// ==================== SAVE ====================
+
+function saveFloatingLayoutToSlot(slot) {
+    const visible = getVisibleWindows();
+    if (!visible || visible.length === 0) {
+        showOSDSafe("No windows to save", "dialog-warning");
+        return;
+    }
+
+    const state = getCurrentState();
+    const isTiling = state && !state.allFloating && getLayoutModel();
+
+    let snapshot;
+    if (isTiling) {
+        const model = getLayoutModel();
+        const savedModel = {
+            leftMain: model.leftMain ? {
+                class: model.leftMain.win.resourceClass || "",
+                name: model.leftMain.win.resourceName || "",
+                caption: model.leftMain.win.caption || "",
+                widthRatio: model.leftMain.widthRatio || 0.6
+            } : null,
+            rows: []
+        };
+
+        for (let row of model.rows || []) {
+            const newRow = [];
+            for (let item of row.windows || []) {
+                newRow.push({
+                    class: item.win.resourceClass || "",
+                    name: item.win.resourceName || "",
+                    caption: item.win.caption || "",
+                    widthRatio: item.widthRatio || 1
+                });
+            }
+            savedModel.rows.push({
+                heightRatio: row.heightRatio || 1,
+                windows: newRow
+            });
+        }
+        snapshot = { type: "tiling", model: savedModel };
+        showOSDSafe(`Layout saved (tiling) → slot ${slot + 1}`, "document-save");
+    } else {
+        const data = [];
+        for (let w of visible) {
+            if (!w || w.deleted) continue;
+            const g = w.frameGeometry;
+            data.push({ x: g.x, y: g.y, width: g.width, height: g.height });
+        }
+        snapshot = { type: "floating", data: data };
+        showOSDSafe(`Layout saved (floating) → slot ${slot + 1}`, "document-save");
+    }
+
+    floatingLayouts[slot] = snapshot;
+    currentLayoutIndex = slot;
+}
+
+// ==================== RESTORE ================================================================================
+function extractOrderFromModel(model) {
+    const order = [];
+
+    if (model.leftMain && model.leftMain.win) {
+        order.push(model.leftMain.win);
+    }
+
+    for (let row of model.rows || []) {
+        for (let item of row.windows || []) {
+            if (item.win) {
+                order.push(item.win);
+            }
+        }
+    }
+
+    return order;
+}
+
+function minimizeOverflowOutsideSnapshot(order) {
+    if (!MINIMIZE_SNAPSHOT_OVERFLOW) return;
+
+    const visible = getVisibleWindows() || [];
+    const tiledSet = new Set(order);
+
+    for (let w of visible) {
+        if (!w || w.deleted) continue;
+
+        // 🔥 windows NOT belonging to the snapshot
+        if (!tiledSet.has(w)) {
+            try {
+                if (w.minimizable && !w.minimized) {
+                    w.minimized = true;
+
+                    if (DEBUG) {
+                        print("Snapshot overflow → minimized:", w.caption || w.resourceClass);
+                    }
+                }
+            } catch (e) {
+                if (DEBUG) print("Snapshot minimize failed:", e);
+            }
+        }
+    }
+}
+
+function restoreFloatingLayoutFromSlot(slot) {
+    print("==== RESTORE START slot", slot, "====");
+
+    const snapshot = floatingLayouts[slot];
+    if (!snapshot) {
+        showOSDSafe(`Slot ${slot + 1} empty`, "dialog-warning");
+        return;
+    }
+
+    let windows = getVisibleWindows().filter(w => !w.deleted);
+    if (windows.length === 0) {
+        showOSDSafe("Brak okien do przywrócenia", "dialog-warning");
+        return;
+    }
+
+    const usable = getUsableArea();
+
+    // =========================================================
+    // 🔥 FLOATING RESTORE
+    // =========================================================
+    if (snapshot.type === "floating") {
+        const data = snapshot.data || [];
+
+        const state = getCurrentState();
+        state.allFloating = true;
+        state._layoutDirty = false;
+
+        for (let w of windows) {
+            getFloatingSet().add(w);
+        }
+
+        for (let i = 0; i < Math.min(windows.length, data.length); i++) {
+            const w = windows[i];
+            const g = data[i];
+
+            if (!w || w.deleted) continue;
+
+            scriptGeometryChange = true;
+            w.frameGeometry = {
+                x: g.x,
+                y: g.y,
+                width: g.width,
+                height: g.height
+            };
+            scriptGeometryChange = false;
+        }
+
+        applyBorderMode();
+
+        _visibleCache = null;
+        _geoCache.clear();
+
+        showOSDSafe(`Floating restored → slot ${slot + 1}`, "view-restore");
+        print("✅ FLOATING RESTORE COMPLETED");
+        disableKWinTiling();
+        return;
+    }
+
+    // =========================================================
+    // 🔥 TILING RESTORE
+    // =========================================================
+    if (snapshot.type !== "tiling" || !snapshot.model) {
+        print("❌ Not a valid snapshot");
+        showOSDSafe(`Slot ${slot + 1} nieprawidłowy`, "dialog-warning");
+        return;
+    }
+
+    let model = assignWindowsToModelBySnapshot(snapshot.model, windows);
+    if (!model) {
+        print("❌ assignWindowsToModelBySnapshot failed");
+        return;
+    }
+
+    normalizeModelWithConstraints(model, usable);
+    model = normalizeModelStructure(model);
+
+    if (!canApplyLayoutModel(model, usable) || !validateLayoutBySimulation(model, usable)) {
+        print("⚠️ Model invalid → fallback to auto grid");
+        const orderFallback = windows.slice();
+        model = buildAndValidateModel(orderFallback, usable);
+        disableKWinTiling();
+        if (!model) {
+            showOSDSafe("Nie udało się odtworzyć układu", "dialog-error");
+            return;
+        }
+    }
+
+    // =========================================================
+    // 🔥 ORDER FROM MODEL (NEW, CORRECT VERSION)
+    // =========================================================
+    const order = extractOrderFromModel(model);
+
+    // =========================================================
+    // 🔥 RESET OLD MODEL
+    // =========================================================
+    clearLayoutModel();
+    forceRebuildModel();
+
+    // =========================================================
+    // 🔥 APPLY NEW MODEL
+    // =========================================================
+    setLayoutModel(model);
+    setLastTiledOrder(order);
+    minimizeOverflowOutsideSnapshot(order);
+
+    const state = getCurrentState();
+    state.allFloating = false;
+
+    scriptGeometryChange = true;
+    applyLayoutModel(model, usable);
+    scriptGeometryChange = false;
+
+    applyBorderMode();
+
+    // =========================================================
+    // 🔥 SYNC (persist)
+    // =========================================================
+    syncStateWithModel();
+
+    // =========================================================
+    // 🔥 RESET REBUILD FLAG (CRITICAL)
+    // =========================================================
+    state._layoutDirty = false;
+
+    if (typeof state._forceRebuild !== "undefined") {
+        state._forceRebuild = false;
+    }
+
+    if (typeof consumeForceRebuild === "function") {
+        consumeForceRebuild();
+    }
+
+    _visibleCache = null;
+    _geoCache.clear();
+
+    showOSDSafe(`Tiling restored → slot ${slot + 1}`, "view-restore");
+    print("✅ TILING RESTORE COMPLETED");
+}
+
+function assignWindowsToModelBySnapshot(snapshotModel, windows) {
+    if (!snapshotModel) return null;
+
+    const used = new Set();
+
+    const model = {
+        leftMain: null,
+        rows: []
+    };
+
+    if (snapshotModel.leftMain) {
+        model.leftMain = {
+            win: null,
+            widthRatio: snapshotModel.leftMain.widthRatio || 0.6,
+            _snap: snapshotModel.leftMain
+        };
+    }
+
+    for (let snapRow of snapshotModel.rows || []) {
+        const newRow = {
+            heightRatio: snapRow.heightRatio || 1,
+            windows: []
+        };
+
+        for (let snapItem of (snapRow.windows || snapRow)) {
+            newRow.windows.push({
+                win: null,
+                widthRatio: snapItem.widthRatio || 1,
+                _snap: snapItem
+            });
+        }
+
+        model.rows.push(newRow);
+    }
+
+    function assignSlot(slot) {
+        const match = matchWindowToSnapshot(slot._snap, windows);
+        if (match && !used.has(match)) {
+            slot.win = match;
+            used.add(match);
+            return true;
+        }
+        return false;
+    }
+
+    if (model.leftMain) assignSlot(model.leftMain);
+
+    for (let row of model.rows) {
+        for (let slot of row.windows) {
+            assignSlot(slot);
+        }
+    }
+
+    // 🔥 3. FALLBACK
+    const remaining = windows
+    .filter(w => w && !w.deleted && !used.has(w))
+    .sort((a, b) => (a.stackingOrder || 0) - (b.stackingOrder || 0));
+
+    let idx = 0;
+
+    function fillSlot(slot) {
+        if (!slot.win && idx < remaining.length) {
+            slot.win = remaining[idx++];
+        }
+    }
+
+    if (model.leftMain) fillSlot(model.leftMain);
+
+    for (let row of model.rows) {
+        for (let slot of row.windows) {
+            fillSlot(slot);
+        }
+    }
+
+    // 🔥 4. CLEAN SNAP META
+    if (model.leftMain) delete model.leftMain._snap;
+
+    for (let row of model.rows) {
+        for (let slot of row.windows) {
+            delete slot._snap;
+        }
+    }
+
+    return model;
+}
+
+function matchWindowToSnapshot(snap, windows) {
+    if (!snap) return null;
+    let best = null;
+    let bestScore = -1;
+
+    for (let w of windows) {
+        if (!w || w.deleted) continue;
+        let score = 0;
+        const cls = (w.resourceClass || "").toLowerCase();
+        const name = (w.resourceName || "").toLowerCase();
+        const cap = (w.caption || "").toLowerCase();
+
+        if (cls === (snap.class || "").toLowerCase()) score += 4;
+        if (name === (snap.name || "").toLowerCase()) score += 3;
+        if (cap && snap.caption && cap.includes((snap.caption || "").toLowerCase())) score += 2;
+
+        if (score > bestScore) {
+            bestScore = score;
+            best = w;
+        }
+    }
+    return bestScore > 1 ? best : null;   // raised threshold
+}
+
 // ──────────────────────────────────────────────────────────────
 // AUTO-RETILE LOGIC
 // ──────────────────────────────────────────────────────────────
@@ -514,7 +1735,7 @@ function canAutoRetile() {
 
     const state = getCurrentState();
 
-    if (state.allFloating) return false;
+    if (state.allFloating && !state.kwinTilingActive) return false;
 
     const mode = state.autoRetileMode ?? AUTO_RETILE_MODE;
 
@@ -529,7 +1750,6 @@ function canAutoRetile() {
 
     if (TILE_EVEN_IF_NEW_MAXIMIZED) {
 
-        // 🔥 ignoruj świeże okna (timestamp < 400ms)
         anyMaximized = visible.some(w =>
         w.maximizeMode !== 0 &&
         !(w._kwinAddedAt && (NOW - w._kwinAddedAt < 400))
@@ -537,9 +1757,11 @@ function canAutoRetile() {
 
     } else {
 
-        // 🔁 oryginalne zachowanie
         anyMaximized = visible.some(w => w.maximizeMode !== 0);
     }
+
+    // 🔥 KWin -> treat as mode 2 (always)
+//    if (state.kwinTilingActive) return true;
 
     if (mode === 2) return true;
 
@@ -573,7 +1795,6 @@ function setAutoRetileAlways() { applyAutoRetileMode(2); scheduleRelayout(); }
 // ──────────────────────────────────────────────────────────────
 // HELPERS
 // ──────────────────────────────────────────────────────────────
-
 
 
 function safeNumber(v, fallback = 0) {
@@ -615,7 +1836,6 @@ function cleanupResizeEdges() {
 }
 
 
-
 function getDesktopIdSafe(d) {
     if (typeof d === "number") {
         return d.toString();
@@ -641,9 +1861,160 @@ function getDesktopIdSafe(d) {
 }
 
 function windowOnCurrentDesktop(win, currentDeskId) {
-    if (!win || !win.desktops) return false;
+    if (!win) return false;
 
-    return win.desktops.some(d => getDesktopIdSafe(d) === currentDeskId);
+    // Window visible on all desktops should always pass.
+    if (win.onAllDesktops) return true;
+
+    const currentDesktopObj = workspace.currentDesktop;
+    const desktops = getWindowDesktopRefs(win);
+    const currentDeskAliases = getDesktopAliases(currentDesktopObj);
+    currentDeskAliases.add(currentDeskId);
+
+    // Primary check: direct object identity and normalized desktop id.
+    if (desktops.length > 0) {
+        return desktops.some(d => {
+            if (!d) return false;
+            if (d === currentDesktopObj) return true;
+            const aliases = getDesktopAliases(d);
+            for (let id of aliases) {
+                if (currentDeskAliases.has(id)) return true;
+            }
+            return false;
+        });
+    }
+
+    // Wayland fallback: some windows expose a singular `desktop` reference.
+    if (win.desktop) {
+        if (win.desktop === currentDesktopObj) return true;
+        const aliases = getDesktopAliases(win.desktop);
+        for (let id of aliases) {
+            if (currentDeskAliases.has(id)) return true;
+        }
+        return false;
+    }
+
+    // Conservative fallback: allow only the active window (newly opened/transient cases).
+    // Broad fallback caused cross-desktop pollution and layout desync loops.
+    if (workspace.activeWindow && win === workspace.activeWindow) {
+        return true;
+    }
+
+    if (DEBUG) {
+        const label = win.caption || win.resourceClass || win.resourceName || "?";
+        print(`[desktop-fallback] rejecting "${label}" (no desktop assignment exposed)`);
+    }
+    return false;
+}
+
+function getWindowDesktopRefs(win) {
+    if (!win || !win.desktops) return [];
+
+    const d = win.desktops;
+
+    if (Array.isArray(d)) return d.filter(x => x);
+
+    if (typeof d.length === "number") {
+        const out = [];
+        for (let i = 0; i < d.length; i++) {
+            if (d[i]) out.push(d[i]);
+        }
+        if (out.length > 0) return out;
+    }
+
+    if (typeof d[Symbol.iterator] === "function") {
+        const out = [];
+        for (let item of d) {
+            if (item) out.push(item);
+        }
+        return out;
+    }
+
+    return [];
+}
+
+function getDesktopAliases(desktopRef) {
+    const out = new Set();
+
+    if (desktopRef === null || desktopRef === undefined) return out;
+
+    if (typeof desktopRef === "string") {
+        if (desktopRef.length > 0) out.add(desktopRef);
+        return out;
+    }
+
+    if (typeof desktopRef === "number" && isFinite(desktopRef)) {
+        out.add(Math.trunc(desktopRef).toString());
+        return out;
+    }
+
+    const idSafe = getDesktopIdSafe(desktopRef);
+    if (idSafe) out.add(idSafe);
+
+    if (desktopRef && typeof desktopRef === "object") {
+        if (typeof desktopRef.id === "string" && desktopRef.id.length > 0) {
+            out.add(desktopRef.id);
+        }
+        if (typeof desktopRef.x11DesktopNumber === "number" && desktopRef.x11DesktopNumber > 0) {
+            out.add(desktopRef.x11DesktopNumber.toString());
+        }
+    }
+
+    return out;
+}
+
+function debugWindowVisibility(win, tag = "visible-debug") {
+    if (!DEBUG || !win) return;
+
+    const currentDeskId = getCurrentDesktopIdentifier();
+    const currentActivity = workspace.currentActivity;
+    const screenGeo = getFullArea();
+    const geo = win.frameGeometry || { x: 0, y: 0, width: 0, height: 0 };
+    const centerX = geo.x + geo.width / 2;
+    const centerY = geo.y + geo.height / 2;
+
+    const checks = {
+        normalWindow: !!win.normalWindow,
+        managed: !!win.managed,
+        minimized: !!win.minimized,
+        specialWindow: !!win.specialWindow,
+        dock: !!win.dock,
+        desktopWindow: !!win.desktopWindow,
+        skipTaskbar: !!win.skipTaskbar,
+        popup: !!win.popup,
+        dialog: !!win.dialog,
+        utilityWindow: !!win.utilityWindow,
+        deleted: !!win.deleted,
+        ignoreMatch: matchesIgnoreList(win, IGNORE_TILING),
+        activityOk: !(currentActivity && !win.onAllActivities && !win.activities.includes(currentActivity)),
+        desktopOk: windowOnCurrentDesktop(win, currentDeskId),
+        screenOk:
+            centerX >= screenGeo.x &&
+            centerX < screenGeo.x + screenGeo.width &&
+            centerY >= screenGeo.y &&
+            centerY < screenGeo.y + screenGeo.height
+    };
+
+    const rejectedBy = [];
+    if (!checks.normalWindow) rejectedBy.push("normalWindow=false");
+    if (!checks.managed) rejectedBy.push("managed=false");
+    if (checks.minimized) rejectedBy.push("minimized");
+    if (checks.specialWindow) rejectedBy.push("specialWindow");
+    if (checks.dock) rejectedBy.push("dock");
+    if (checks.desktopWindow) rejectedBy.push("desktopWindow");
+    if (checks.skipTaskbar) rejectedBy.push("skipTaskbar");
+    if (checks.popup) rejectedBy.push("popup");
+    if (checks.dialog) rejectedBy.push("dialog");
+    if (checks.utilityWindow) rejectedBy.push("utilityWindow");
+    if (checks.deleted) rejectedBy.push("deleted");
+    if (checks.ignoreMatch) rejectedBy.push("ignoreList");
+    if (!checks.activityOk) rejectedBy.push("activity");
+    if (!checks.desktopOk) rejectedBy.push("desktop");
+    if (!checks.screenOk) rejectedBy.push("screen");
+
+    const label = win.caption || win.resourceClass || win.resourceName || "?";
+    const screenId = getEffectiveScreenId();
+    print(`[${tag}] "${label}" screen=${screenId} desk=${currentDeskId} rejectedBy=${rejectedBy.join(",") || "none"}`);
 }
 
 function showOSD(message, icon = "object-order") {
@@ -663,10 +2034,6 @@ function showOSD(message, icon = "object-order") {
 // OSD QUEUE
 // ──────────────────────────────────────────────
 
-let osdQueue = [];
-let osdProcessing = false;
-
-const OSD_DISPLAY_TIME = 500;
 
 function showOSDSafe(message, icon = "object-order") {
 
@@ -690,7 +2057,6 @@ function processOSDQueue() {
 
     const item = osdQueue.shift();
 
-    // 🔥 NIE BLOKUJEMY niczego – tylko pokazujemy
     showOSD(item.message, item.icon);
 
     let timer = new QTimer();
@@ -706,7 +2072,6 @@ function processOSDQueue() {
 }
 
 
-
 function showUnifiedLayoutOSD(extraInfo = "") {
     const name = getLayoutName();
     let text = "Layout:\n " + name;
@@ -715,7 +2080,6 @@ function showUnifiedLayoutOSD(extraInfo = "") {
     }
     showOSD(text, "view-grid");
 }
-
 
 
 // ──────────────────────────────────────────────────────────────
@@ -790,20 +2154,16 @@ function getTiledOrder() {
 }
 
 
-
-
-
 function getVisibleWindows() {
 
     const now = Date.now();
 
-    // 🔥 KLUCZ: activity + desktop + screen
     const cacheKey =
     getCurrentActivityId() + ":" +
     getCurrentDesktopIdentifier() + ":" +
-    workspace.activeScreen;
+    getEffectiveScreenId();
 
-    // 🔥 cache valid (krótki TTL + ten sam kontekst)
+    // 🔥 cache valid (short TTL + same context)
     if (
         _visibleCache &&
         cacheKey === _visibleCacheKey &&
@@ -814,7 +2174,7 @@ function getVisibleWindows() {
 
     const currentDeskId = getCurrentDesktopIdentifier();
     const currentActivity = workspace.currentActivity;
-    const activeScreen = workspace.activeScreen;
+    const activeScreen = getEffectiveScreenId();
 
 
     const screenGeo = getFullArea();
@@ -859,7 +2219,6 @@ function getVisibleWindows() {
         centerY <  screenGeo.y + screenGeo.height;
     });
 
-    // 🔥 zapis cache
     _visibleCache = result;
     _visibleCacheTime = now;
     _visibleCacheKey = cacheKey;
@@ -870,7 +2229,7 @@ function getVisibleWindows() {
 function getCyclingWindows() {
     const currentDeskId = getCurrentDesktopIdentifier();
     const currentActivity = workspace.currentActivity;
-    const activeScreen = workspace.activeScreen;
+    const activeScreen = getEffectiveScreenId();
 
     return workspace.windowList().filter(w => {
 
@@ -896,7 +2255,6 @@ function getCyclingWindows() {
             return false;
         }
 
-        // DESKTOP — 🔥 UJEDNOLICONE
         if (!windowOnCurrentDesktop(w, currentDeskId)) return false;
 
         const geo = getCachedGeometry(w);
@@ -947,9 +2305,34 @@ function overlapRatio(a, b) {
 }
 
 function minimizeIgnoredWindows() {
+    if (!MINIMIZE_IGNORED_WINDOWS) return;
     const currentDeskId = getCurrentDesktopIdentifier();
     const allWindows = workspace.windowList();
 
+    let hasTiledCandidate = false;
+
+    for (let w of allWindows) {
+        if (!w) continue;
+
+        if (
+            windowOnCurrentDesktop(w, currentDeskId) &&
+            !w.minimized &&
+            !isIgnoredSpecialWindow(w) &&
+            !(IGNORE_TILING.some(word => (w.caption || "").toLowerCase().includes(word)))
+        ) {
+            hasTiledCandidate = true;
+            break;
+        }
+    }
+
+    if (!hasTiledCandidate) {
+        if (DEBUG) print("minimizeIgnoredWindows: skip (only ignored windows)");
+        return;
+    }
+
+    // ─────────────────────────────────────────────
+    // ORIGINAL LOGIC (unchanged)
+    // ─────────────────────────────────────────────
     for (let w of allWindows) {
 
         if (
@@ -993,7 +2376,7 @@ function tileGridToModel(ordered, area) {
         return layoutModel || null;
     }
 
-    // ───── 2 OKNA ─────
+    // ───── 2 WINDOWS ─────
     if (count === 2) {
         const vertical = getFirstRowWindowsMode() > 0;
         if (vertical) {
@@ -1013,7 +2396,7 @@ function tileGridToModel(ordered, area) {
         return model;
     }
 
-    // ───── LEFT MAIN ───── (bez zmian)
+    // ───── LEFT MAIN ───── 
     if (getFirstRowWindowsMode() === -1 && count > 1) {
         const main = ordered[0];
         const rest = ordered.slice(1);
@@ -1025,8 +2408,8 @@ function tileGridToModel(ordered, area) {
 
         let rightCols;
 
-        // 🔥 SPECJALNY PRZYPADEK: 2 okna w grid → pion (1 kolumna)
-        // zapobiega 3 oknom w jednym rzędzie
+        // 🔥 SPECIAL CASE: 2 windows in grid -> vertical (1 column)
+        // prevents 3 windows in one row
         if (rest.length === 2) {
             rightCols = 1;
         } else {
@@ -1093,17 +2476,17 @@ function tileGridToModel(ordered, area) {
         return model;
     }
 
-    // ───── GRID MODE – poprawiona logika first row (auto + fixed) ─────
+    // ───── GRID MODE - improved first-row logic (auto + fixed) ─────
     let firstRowCount;
 
     if (getFirstRowWindowsMode() > 0) {
-        // Tryb ręczny (np. 3 okna na górze)
+        // Manual mode (e.g. 3 windows on top)
         firstRowCount = Math.min(getFirstRowWindowsMode(), count);
     } else {
-        // AUTO – bezpieczna wersja
-        firstRowCount = Math.ceil(Math.sqrt(count));   // start od klasycznego
+        // AUTO - safe version
+        firstRowCount = Math.ceil(Math.sqrt(count));   // start from the classic value
 
-        // Zmniejszaj liczbę okien w pierwszym rzędzie dopóki się nie zmieści
+        // Decrease the number of windows in the first row until it fits
         while (firstRowCount > 1) {
             let minSum = 0;
             for (let i = 0; i < firstRowCount; i++) {
@@ -1121,7 +2504,7 @@ function tileGridToModel(ordered, area) {
 
     // ───── FIRST ROW ─────
     {
-        // 🔥 dynamiczne dopasowanie ile okien realnie wejdzie
+        // 🔥 dynamic adjustment of how many windows can actually fit
         let maxFit = 0;
         let runningSum = 0;
 
@@ -1134,7 +2517,7 @@ function tileGridToModel(ordered, area) {
             maxFit++;
         }
 
-        // 🔥 fallback – zawsze przynajmniej 1
+        // 🔥 fallback - always at least 1
         firstRowCount = Math.max(1, maxFit);
 
         const usableW = area.width - GAP * Math.max(0, firstRowCount - 1);
@@ -1148,7 +2531,7 @@ function tileGridToModel(ordered, area) {
             minSum += m;
         }
 
-        // 🔥 safety (powinno się nie zdarzyć po powyższym, ale zostawiamy)
+        // 🔥 safety (should not happen after the checks above, but we keep it)
         if (minSum > usableW) {
             if (DEBUG) print(`FIRST ROW IMPOSSIBLE – minSum=${minSum} > usableW=${usableW} (firstRowCount=${firstRowCount})`);
             return null;
@@ -1162,13 +2545,13 @@ function tileGridToModel(ordered, area) {
             const normalCount = firstRowCount - 1;
             const totalW = getLeftRatio() + normalCount;
 
-            // 🔥 pierwsze okno (main/left)
+            // 🔥 first window (main/left)
             windows.push({
                 win: ordered[idx++],
                 widthRatio: (mins[0] + extra * (getLeftRatio() / totalW)) / usableW
             });
 
-            // 🔥 reszta okien
+            // 🔥 remaining windows
             for (let i = 1; i < firstRowCount; i++) {
                 windows.push({
                     win: ordered[idx++],
@@ -1190,7 +2573,7 @@ function tileGridToModel(ordered, area) {
         });
     }
 
-    // ───── DYNAMIC GRID – reszta okien ─────
+    // ───── DYNAMIC GRID – remaining windows ─────
     while (idx < count) {
         let row = [];
         let rowMin = 0;
@@ -1241,13 +2624,13 @@ function tileGridToModel(ordered, area) {
 
     return model;
 }
+
 // ──────────────────────────────────────────────────────────────
 // CORE ENGINE
 // ──────────────────────────────────────────────────────────────
 function safeHeightTotal(h) {
     return Math.max(1, safeNumber(h, 1));
 }
-
 
 function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
 
@@ -1258,15 +2641,20 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
 
     // 🔥 HARDEN HEIGHT/WIDTH TOTAL
     let usable = safeHeightTotal(totalSize - totalGap);
-
     if (usable <= 0) return new Array(n).fill(1);
 
+    // ─────────────────────────────
+    // RATIOS
+    // ─────────────────────────────
     let ratios = [];
     let ratioSum = 0;
 
     for (let i = 0; i < n; i++) {
         let r = safeNumber(getRatio(items[i]), 0);
-        if (r < 0) r = 0;
+
+        // 🔥 clamp ratio (important!)
+        if (r <= 0) r = 0.01;
+
         ratios.push(r);
         ratioSum += r;
     }
@@ -1276,6 +2664,9 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
         ratios = new Array(n).fill(1);
     }
 
+    // ─────────────────────────────
+    // MIN SIZES
+    // ─────────────────────────────
     const mins = [];
     let sumMin = 0;
 
@@ -1286,24 +2677,61 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
         sumMin += m;
     }
 
-    // 🔥 JEŚLI MINY NIE MIESZCZĄ SIĘ → fallback
+    // ─────────────────────────────
+    // 🔥 FIX: fallback preserving proportions
+    // ─────────────────────────────
     if (sumMin > usable) {
-        const base = Math.max(1, Math.floor(usable / n));
-        return new Array(n).fill(base);
+
+        let sizes = [];
+
+        for (let i = 0; i < n; i++) {
+            sizes[i] = usable * (ratios[i] / ratioSum);
+        }
+
+        // normalization
+        sizes = sizes.map(s => safeSize(s, 1));
+
+        let sum = sizes.reduce((a, b) => a + b, 0);
+        let diff = usable - sum;
+
+        let i = 0;
+        while (diff !== 0 && i < n * 20) {
+            const idx = i % n;
+
+            if (diff > 0) {
+                sizes[idx]++;
+                diff--;
+            } else {
+                if (sizes[idx] > 1) {
+                    sizes[idx]--;
+                    diff++;
+                }
+            }
+            i++;
+        }
+
+        return sizes;
     }
 
+    // ─────────────────────────────
+    // NORMAL CASE
+    // ─────────────────────────────
     let sizes = [];
 
     for (let i = 0; i < n; i++) {
         sizes[i] = usable * (ratios[i] / ratioSum);
     }
 
+    // enforce min
     for (let i = 0; i < n; i++) {
         if (sizes[i] < mins[i]) sizes[i] = mins[i];
     }
 
     let sum = sizes.reduce((a, b) => a + b, 0);
 
+    // ─────────────────────────────
+    // OVERFLOW REDUCTION
+    // ─────────────────────────────
     if (sum > usable) {
         let overflow = sum - usable;
         let i = 0;
@@ -1321,6 +2749,9 @@ function distributeSizesWithMin(items, totalSize, gap, getMin, getRatio) {
         }
     }
 
+    // ─────────────────────────────
+    // FINAL NORMALIZATION
+    // ─────────────────────────────
     sizes = sizes.map(s => safeSize(s, 1));
 
     let finalSum = sizes.reduce((a, b) => a + b, 0);
@@ -1383,12 +2814,12 @@ function normalizeModelWithConstraints(model, usable) {
         model.rows.forEach(r => r.heightRatio = 1);
     }
 
-    // normalizacja bazowa
+    // base normalization
     for (let row of model.rows) {
         row.heightRatio /= sumRatios;
     }
 
-    // clamp do minimum
+    // clamp to minimum
     for (let i = 0; i < model.rows.length; i++) {
 
         const minRatio = minHeights[i] / totalH;
@@ -1398,7 +2829,7 @@ function normalizeModelWithConstraints(model, usable) {
         }
     }
 
-    // scale jeśli overflow
+    // scale if overflow
     let sumAfterClamp = model.rows.reduce((a, r) => a + r.heightRatio, 0);
 
     if (sumAfterClamp > 1) {
@@ -1407,7 +2838,7 @@ function normalizeModelWithConstraints(model, usable) {
             row.heightRatio *= scale;
         }
 
-        // 🔥 KLUCZ: ponowny clamp (NIE USUWAĆ!)
+        // 🔥 KEY: re-clamp (DO NOT REMOVE!)
         for (let i = 0; i < model.rows.length; i++) {
             const minRatio = minHeights[i] / totalH;
             if (model.rows[i].heightRatio < minRatio) {
@@ -1512,7 +2943,7 @@ function normalizeModelStructure(model) {
             newWindows.push(item);
         }
 
-        // 🔥 usuń puste rzędy
+        // 🔥 remove empty rows
         if (newWindows.length > 0) {
             row.windows = newWindows;
             newRows.push(row);
@@ -1710,8 +3141,6 @@ function validateLayoutBySimulation(model, usable) {
     return true;
 }
 
-
-
 function canApplyLayoutModel(model, usable) {
 
     if (!model || !model.rows) return false;
@@ -1800,7 +3229,6 @@ function canApplyLayoutModel(model, usable) {
     return true;
 }
 
-
 function canFitHeightStrict(model, area) {
 
     if (!model || !model.rows) return false;
@@ -1823,8 +3251,6 @@ function canFitHeightStrict(model, area) {
     return totalMinHeight <= area.height;
 }
 
-
-
 function buildAndValidateModel(windows, usable) {
 
     if (!windows || windows.length === 0) return null;
@@ -1835,7 +3261,7 @@ function buildAndValidateModel(windows, usable) {
 
     normalizeModelWithConstraints(model, usable);
 
-    // 🔥 NOWY HARD CHECK (KLUCZ)
+    // 🔥 NEW HARD CHECK (KEY)
     if (!canFitHeightStrict(model, usable)) {
         if (DEBUG) print("HEIGHT HARD FAIL");
         return null;
@@ -1877,7 +3303,6 @@ function sanitizeState() {
     }
 }
 
-
 function tryReclaimAutoFloatingWindows() {
     const floating = Array.from(getFloatingSet())
         .filter(w => autoFloating.has(w));
@@ -1889,7 +3314,7 @@ function tryReclaimAutoFloatingWindows() {
     const usable = getUsableArea();
     let changed = false;
 
-    // Próbujemy włożyć od najstarszych auto-floating
+    // Try inserting starting from the oldest auto-floating windows
     for (let w of floating) {
         if (!w || w.deleted || !autoFloating.has(w)) continue;
 
@@ -1898,21 +3323,21 @@ function tryReclaimAutoFloatingWindows() {
         const model = getLayoutModel();
         const startIndex = (model?.leftMain) ? 1 : 0;
 
-        // 🔥 budujemy kolejność prób
+        // 🔥 build trial order
         let indices = [];
 
-        // 1. najpierw slot po usuniętym oknie
+        // 1. first the slot after the removed window
         if (lastFreedSlot !== null && lastFreedSlot >= startIndex) {
             indices.push(lastFreedSlot);
             if (DEBUG) print("TRY SLOT:", lastFreedSlot);
         }
 
-        // 2. fallback — od końca (żeby uzupełniać grid)
+        // 2. fallback - from the end (to fill the grid)
         for (let i = ordered.length; i >= startIndex; i--) {
             if (i !== lastFreedSlot) indices.push(i);
         }
 
-        // 🔁 próbujemy w tych miejscach
+        // 🔁 try these positions
         for (let i of indices) {
 
             const testOrder = ordered.slice();
@@ -1929,7 +3354,7 @@ function tryReclaimAutoFloatingWindows() {
 
             if (DEBUG) print("RECLAIM @", i, ":", w.caption || w.resourceClass);
 
-            lastFreedSlot = null;   // 🔥 slot zużyty
+            lastFreedSlot = null;   // 🔥 slot consumed
             changed = true;
             inserted = true;
 
@@ -1943,33 +3368,52 @@ function tryReclaimAutoFloatingWindows() {
 
     if (changed) {
         setLastTiledOrder(ordered);
-        // Nie czyścimy modelu tutaj - zostawiamy to handleWindowRemoved
+        // We do not clear the model here - we leave that to handleWindowRemoved
         return true;
     }
     return false;
 }
 
+workspace.currentDesktopChanged.connect(() => {
+    _desktopSwitchTs = Date.now();
+});
 
+function isDuringDesktopSwitch() {
+    return (Date.now() - _desktopSwitchTs) < 3;
+}
 
+function getWindowToken(win) {
+    if (!win) return 0;
+    if (_windowTokens.has(win)) return _windowTokens.get(win);
+    const id = _windowTokenSeq++;
+    _windowTokens.set(win, id);
+    return id;
+}
 
 function reLayout() {
-    if (getCurrentState().allFloating) return;
+    const state = getCurrentState();
+    if (state.allFloating || state.maximizedAll) return;
+
     sanitizeState();
     cleanupFloatingWindows();
     cleanupResizeEdges();
+
     let { ordered, visible: tiledVisible } = getTiledOrder();
     if (!ordered || ordered.length === 0) return;
     if (tiledVisible.every(w => w.minimized)) return;
+
     const currentDeskId = getCurrentDesktopIdentifier();
     lastDesktopId = currentDeskId;
-    // Demaksymalizacja
+
+    // Unmaximize
     const allVisible = getVisibleWindows();
     for (let w of allVisible) {
         if (!w || w.deleted) continue;
         if (w.fullScreen) w.fullScreen = false;
         if (w.maximizeMode !== 0) w.setMaximize(false, false);
     }
-    // Obsługa zbyt wielu okien
+
+    // Handling too many windows
     if (ordered.length > MAX_WINDOWS) {
         const tooManyWindows = ordered.slice(MAX_WINDOWS);
         ordered = ordered.slice(0, MAX_WINDOWS);
@@ -1980,36 +3424,71 @@ function reLayout() {
             }
         }
     }
+
     const effectiveOrder = ordered.slice();
     const usable = getUsableArea();
+
     if (usable.width < 50 || usable.height < 50) {
         showOSDSafe("Screen too small", "dialog-error");
         return;
     }
-    const state = getCurrentState();
+
+    const ws = getWS();
+    const hasForcePending = !!(ws.layoutMeta && ws.layoutMeta.force);
+    const signature =
+        getCurrentActivityId() + "|" +
+        getCurrentDesktopIdentifier() + "|" +
+        getEffectiveScreenId() + "|" +
+        effectiveOrder.map(getWindowToken).join(",") + "|" +
+        usable.x + "," + usable.y + "," + usable.width + "," + usable.height + "|" +
+        !!state.kwinTilingActive + "|" + !!state.allFloating + "|" + !!state.maximizedAll;
+
+    if (!state._layoutDirty && !hasForcePending && state._lastRelayoutSignature === signature) {
+        if (DEBUG) print("reLayout: skipped (signature unchanged)");
+        return;
+    }
+
     let model = getLayoutModel();
+
     if (model && model._count !== ordered.length) {
         if (DEBUG) print("MODEL DESYNC → clearing");
         clearLayoutModel();
         forceRebuildModel();
         model = null;
     }
+
     model = normalizeModelStructure(model);
     assertModelConsistency(model);
-    const needRebuild = !model ||
-        model._count !== ordered.length ||
-        consumeForceRebuild() ||
-        state._layoutDirty;
+
+    // 🔥 FIX #3 — inteligentny rebuild
+    const blockRebuild = isDuringDesktopSwitch();
+    const isHardDesync = !model || model._count !== ordered.length;
+
+    let needRebuild = isHardDesync ||
+    consumeForceRebuild() ||
+    state._layoutDirty;
+
+    // 🔥 block only SOFT rebuild (e.g. resize), NOT critical
+    if (blockRebuild && !isHardDesync && needRebuild) {
+        if (DEBUG) print("SKIP SOFT REBUILD (desktop switch)");
+        needRebuild = false;
+        state._layoutDirty = false;
+    }
+
     if (needRebuild) {
         let workingOrder = effectiveOrder.slice();
+
         let newModel = buildAndValidateModel(workingOrder, usable);
+
         const removedWindows = [];
+
         while (!newModel && workingOrder.length > 1) {
             const removed = workingOrder.pop();
             if (removed) removedWindows.push(removed);
             newModel = buildAndValidateModel(workingOrder, usable);
         }
-        // KLUCZOWE: oznaczamy jako autoFloating przy zmianie układu
+
+        // AutoFloating on layout change
         for (let w of removedWindows) {
             if (w && !w.deleted) {
                 getFloatingSet().add(w);
@@ -2017,29 +3496,34 @@ function reLayout() {
                 if (DEBUG) print("PUSHED TO AUTOFLOAT (layout change):", w.caption || w.resourceClass);
             }
         }
+
         if (!newModel) {
             showOSDSafe("Layout impossible", "dialog-error");
             clearLayoutModel();
             forceRebuildModel();
             return;
         }
+
         newModel = normalizeModelStructure(newModel);
         assertModelConsistency(newModel);
-        
-        // 🔥 POPRAWKA: _count musi odzwierciedlać rzeczywistą liczbę okien w modelu
-        newModel._count = workingOrder.length;   // ← ZMIANA (było effectiveOrder.length)
-        
+
+        newModel._count = workingOrder.length;
+
         setLayoutModel(newModel);
         state._layoutDirty = false;
+
         if (DEBUG) print("MODEL REBUILT (per workspace)");
-        //setLastTiledOrder(effectiveOrder);
+
         setLastTiledOrder(workingOrder);
-        // Reclaim po rebuildzie modelu
+
+        // Reclaim
         const reclaimed = tryReclaimAutoFloatingWindows();
         if (reclaimed) {
             if (DEBUG) print("RECLAIM → rebuilding model (inline)");
+
             const newOrder = getLastTiledOrder().slice();
             let newModel2 = buildAndValidateModel(newOrder, usable);
+
             if (newModel2) {
                 newModel2 = normalizeModelStructure(newModel2);
                 assertModelConsistency(newModel2);
@@ -2048,7 +3532,9 @@ function reLayout() {
             }
         }
     }
+
     model = getLayoutModel();
+
     if (!model || !canApplyLayoutModel(model, usable)) {
         if (DEBUG) print("LAYOUT BROKEN → attempting recovery");
 
@@ -2071,12 +3557,16 @@ function reLayout() {
             return;
         }
     }
+
     scriptGeometryChange = true;
     applyLayoutModel(model, usable);
     scriptGeometryChange = false;
+    state._lastRelayoutSignature = signature;
+
     if (workspace.activeWindow) {
         workspace.raiseWindow(workspace.activeWindow);
     }
+
     applyBorderMode();
 }
 
@@ -2086,12 +3576,15 @@ function reLayout() {
 function toggleAllWindows(forceMode = null) {
     const visible = getVisibleWindows();
     if (visible.length === 0) return;
+
     for (let w of visible) {
         if (w.fullScreen) w.fullScreen = false;
     }
+
     const shouldTile = forceMode === "tile" ? true :
-                       forceMode === "maximize" ? false :
-                       visible.some(w => w.maximizeMode !== 0);
+    forceMode === "maximize" ? false :
+        visible.some(w => w.maximizeMode !== 0);
+
     if (shouldTile) {
         minimizeIgnoredWindows();
         scheduleRelayout();
@@ -2103,10 +3596,13 @@ function toggleAllWindows(forceMode = null) {
             }
         });
     }
+
+    // <<< PROTECTION >>>
+    sanitizeFloatingBeforeTiling();
+    rebalanceOverflow();
+
     if (workspace.activeWindow) workspace.raiseWindow(workspace.activeWindow);
 }
-
-
 
 //-----------------------------------------------
 function applyBorderMode() {
@@ -2122,13 +3618,13 @@ function applyBorderMode() {
         let target;
 
         if (borderMode === 0) {
-            target = isWindowTiled(w); // tiled → bez ramki
+            target = isWindowTiled(w); // tiled
         }
         else if (borderMode === 1) {
-            target = false; // wszystko z ramką
+            target = false; // everything with borders
         }
         else if (borderMode === 2) {
-            target = true; // wszystko bez ramki
+            target = true; // everything borderless
         }
 
         if (w.noBorder !== target) {
@@ -2154,9 +3650,6 @@ function toggleBorderMode() {
         showOSDSafe("Borders:\nAll OFF", "window");
     }
 }
-
-
-
 
 //-------------------------------
 function cycleAutoRetileMode() {
@@ -2187,11 +3680,10 @@ function cycleAutoRetileMode() {
 
     showOSD(label, icon);
 
-    if (canAutoRetile()) {
-        scheduleRelayout();
-    }
+  //  if (canAutoRetile()) {
+   //     scheduleRelayout();
+   // }
 }
-
 
 
 // ──────────────────────────────────────────────────────────────
@@ -2201,7 +3693,7 @@ function getRatioOSD() {
     const left = getLeftRatio();
     const top  = getTopRatio();
 
-    // przelicz na procent (czytelniejsze niż ratio)
+    // convert to percentage (clearer than ratio)
     const leftPercent = Math.round((left / (left + 1)) * 100);
     const topPercent  = Math.round((top  / (top  + 1)) * 100);
 
@@ -2211,7 +3703,6 @@ function getRatioOSD() {
         text: `Main ratio:\n ${leftPercent}% / ${100 - leftPercent}%`
     };
 }
-
 
 
 function cycleMainRatioPresets() {
@@ -2234,13 +3725,20 @@ function cycleMainRatioPresets() {
     setLeftRatio(MAIN_RATIO_PRESETS[nextIndex][0]);
     setTopRatio(MAIN_RATIO_PRESETS[nextIndex][1]);
 
-    getCurrentState()._layoutDirty = true;   // 🔥 KLUCZ
+    const state = getCurrentState();
+
+    const isTiledMode = !state.allFloating && !state.kwinTilingActive;
+
+    // 🔥 ONLY in your tiling mode
+    if (isTiledMode) {
+        state._layoutDirty = true;
+
+        minimizeIgnoredWindows();
+        scheduleRelayout();
+    }
 
     const ratio = getRatioOSD();
     showOSD(ratio.text, "view-split-left-right");
-
-    minimizeIgnoredWindows();
-    scheduleRelayout();
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -2257,13 +3755,11 @@ function getLayoutName() {
     if (mode === -1) return "Left Master ⬅";
     if (mode === 0) return "Auto Grid ▦";
 
-    // Top N tylko jeśli ma sens
     if (mode > 0) {
         return `Top ${mode} ▤`;
     }
     return "Unknown";
 }
-
 
 
 function cycleFirstRowWindows() {
@@ -2272,30 +3768,30 @@ function cycleFirstRowWindows() {
     if (count < 2) return;
 
     const usable = getUsableArea();
-
     const currentMode = getFirstRowWindowsMode();
     let newMode = findNextPossibleLayout(currentMode, ordered, usable);
 
     if (count === 2) {
         newMode = (currentMode > 0) ? 0 : 1;
     }
-
     if (newMode === currentMode) {
-        newMode = (currentMode === 0) ? -1 : 0;
+        newMode = (currentMode === 0) ? -1 : 1;
     }
 
     setFirstRowWindowsMode(newMode);
     getCurrentState()._layoutDirty = true;
 
     minimizeIgnoredWindows();
+
+    sanitizeFloatingBeforeTiling();
+    rebalanceOverflow();
+
     scheduleRelayout(0);
 
-    // ───── Budujemy komunikat z problemami ─────
     let extra = "";
     if (visible.length > MAX_WINDOWS) {
         extra = `Too many windows! (only ${MAX_WINDOWS} tiled)`;
     } else {
-        // Sprawdzamy czy aktualny model mieści wszystkie okna
         const model = buildAndValidateModel(ordered, usable);
         if (!model) {
             extra = "Some windows don't fit";
@@ -2308,25 +3804,313 @@ function cycleFirstRowWindows() {
 // ──────────────────────────────────────────────────────────────
 // ROTATE WINDOWS
 // ──────────────────────────────────────────────────────────────
-function rotateWindowsClockwiseKeepFocus() {
+function rotateWindowsKeepFocus(direction = 1) {
+    const wins = getVisibleWindows()
+    .filter(w => w && !w.deleted && !w.minimized && !w.skipTaskbar);
 
-    const wins = getVisibleWindows();
     if (wins.length < 2) return;
 
     const activeBefore = workspace.activeWindow;
+    const state = getCurrentState();
 
-    let order = getLastTiledOrder();
+    function getRotatedIndex(i, len, dir) {
+        return dir === 1
+        ? (i - 1 + len) % len   // clockwise
+        : (i + 1) % len;        // counter-clockwise
+    }
 
-    order = [order[order.length - 1], ...order.slice(0, -1)]
-    .filter(w => wins.includes(w) && !w.deleted);
+    const isKWin = wins.some(w => w.tile);
 
-    setLastTiledOrder(order);
 
-    getCurrentState()._layoutDirty = true;   // 🔥
+    function collectLeaves(tile, out = []) {
+        if (tile.tiles && tile.tiles.length > 0) {
+            tile.tiles.forEach(child => collectLeaves(child, out));
+        } else {
+            out.push(tile);
+        }
+        return out;
+    }
+
+
+    function sortTilesByPosition(tiles) {
+        return tiles.slice().sort((a, b) => {
+            const ga = a.absoluteGeometryInScreen;
+            const gb = b.absoluteGeometryInScreen;
+
+            if (!ga || !gb) return 0;
+
+            // first by row (Y), then by column (X)
+            if (Math.abs(ga.y - gb.y) > 20) {
+                return ga.y - gb.y;
+            }
+            return ga.x - gb.x;
+        });
+    }
+
+    // =========================================================
+    // 🔥 TRYB 1 — KWIN TILE
+    // =========================================================
+
+    if (isKWin) {
+
+        const root = workspace.rootTile(workspace.activeScreen, workspace.currentDesktop);
+        if (!root) return;
+
+        function collectLeaves(tile, out = []) {
+            if (tile.tiles && tile.tiles.length > 0) {
+                tile.tiles.forEach(child => collectLeaves(child, out));
+            } else {
+                out.push(tile);
+            }
+            return out;
+        }
+
+        function sortTilesByPosition(tiles) {
+            return tiles.slice().sort((a, b) => {
+                const ga = a.absoluteGeometryInScreen;
+                const gb = b.absoluteGeometryInScreen;
+
+                if (!ga || !gb) return 0;
+
+                if (Math.abs(ga.y - gb.y) > 20) {
+                    return ga.y - gb.y;
+                }
+                return ga.x - gb.x;
+            });
+        }
+
+        const leaves = sortTilesByPosition(collectLeaves(root));
+
+        // 🔥 KEY: assign windows TO TILES (not the other way around)
+        const tileWindows = [];
+
+        leaves.forEach(tile => {
+            const w = wins.find(win => win.tile === tile);
+            if (w) tileWindows.push(w);
+        });
+
+            const count = tileWindows.length;
+            if (count < 2) return;
+
+            // 🔥 detach only those we rotate
+            tileWindows.forEach(w => {
+                if (!w || !w.tile) return;
+                try {
+                    w.tile.unmanage(w);
+                } catch (e) {
+                    // noop: do not write to `window.tile` (deprecated in KWin)
+                }
+            });
+
+                // 🔥 ROTACJA PO KOLE (O)
+                for (let i = 0; i < count; i++) {
+                    const srcIdx = getRotatedIndex(i, count, direction);
+
+                    const w = tileWindows[srcIdx];
+                    const tile = leaves[i];
+
+                    if (!w || w.deleted) continue;
+
+                    workspace.activeWindow = w;
+                    tile.manage(w);
+                }
+
+                if (activeBefore && !activeBefore.deleted) {
+                    workspace.activeWindow = activeBefore;
+                    workspace.raiseWindow(activeBefore);
+                }
+
+                return;
+    }
+
+    // =========================================================
+    // 🔥 MODE 2 — FLOATING
+    // =========================================================
+    if (state.allFloating) {
+
+        const ordered = sortByAngle(wins).reverse();
+
+        const slots = ordered.map(w => {
+            const g = w.frameGeometry;
+            return { x: g.x, y: g.y, w: g.width, h: g.height };
+        });
+
+        for (let i = 0; i < ordered.length; i++) {
+            const srcIdx = getRotatedIndex(i, ordered.length, direction);
+
+            const w = ordered[i];
+            const s = slots[srcIdx];
+
+            if (!w || w.deleted || !s) continue;
+
+            scriptGeometryChange = true;
+            w.frameGeometry = {
+                x: s.x,
+                y: s.y,
+                width: s.w,
+                height: s.h
+            };
+            scriptGeometryChange = false;
+        }
+
+        if (activeBefore && !activeBefore.deleted) {
+            workspace.activeWindow = activeBefore;
+            workspace.raiseWindow(activeBefore);
+        }
+
+        return;
+    }
+
+    // =========================================================
+    // 🔥 MODE 3 — YOUR TILING (PERIMETER + SLOT REMAP)
+    // =========================================================
+
+    // 🔥 1. take the current order (model-based!)
+    let baseOrder = getLastTiledOrder().filter(w =>
+    w && !w.deleted && wins.includes(w)
+    );
+
+    if (baseOrder.length < 2) return;
+
+    // =========================================================
+    // 🔥 2. build PERIMETER PATH from geometry
+    // =========================================================
+    function buildPerimeterPath(windows) {
+
+        const sorted = windows.slice().sort((a, b) => {
+            const ga = a.frameGeometry;
+            const gb = b.frameGeometry;
+
+            if (Math.abs(ga.y - gb.y) > 30) return ga.y - gb.y;
+            return ga.x - gb.x;
+        });
+
+        const rows = [];
+        const ROW_THRESHOLD = 40;
+
+        for (let w of sorted) {
+            const g = w.frameGeometry;
+
+            let placed = false;
+
+            for (let row of rows) {
+                if (Math.abs(g.y - row[0].frameGeometry.y) < ROW_THRESHOLD) {
+                    row.push(w);
+                    placed = true;
+                    break;
+                }
+            }
+
+            if (!placed) rows.push([w]);
+        }
+
+        for (let row of rows) {
+            row.sort((a, b) => a.frameGeometry.x - b.frameGeometry.x);
+        }
+
+        const path = [];
+        const used = new Set();
+
+        // top
+        for (let w of rows[0] || []) {
+            path.push(w); used.add(w);
+        }
+
+        // right
+        for (let r = 1; r < rows.length; r++) {
+            const row = rows[r];
+            const w = row[row.length - 1];
+            if (w && !used.has(w)) {
+                path.push(w); used.add(w);
+            }
+        }
+
+        // bottom
+        if (rows.length > 1) {
+            const bottom = rows[rows.length - 1];
+            for (let i = bottom.length - 1; i >= 0; i--) {
+                const w = bottom[i];
+                if (!used.has(w)) {
+                    path.push(w); used.add(w);
+                }
+            }
+        }
+
+        // left
+        for (let r = rows.length - 2; r > 0; r--) {
+            const row = rows[r];
+            const w = row[0];
+            if (w && !used.has(w)) {
+                path.push(w); used.add(w);
+            }
+        }
+
+        // fallback (center)
+        for (let row of rows) {
+            for (let w of row) {
+                if (!used.has(w)) path.push(w);
+            }
+        }
+
+        return path;
+    }
+
+    const path = buildPerimeterPath(baseOrder);
+
+    if (!path || path.length !== baseOrder.length) return;
+
+    // =========================================================
+    // 🔥 3. ROTACJA PATH
+    // =========================================================
+    const len = path.length;
+    const rotated = [];
+
+    for (let i = 0; i < len; i++) {
+        const srcIdx = getRotatedIndex(i, len, direction);
+        rotated.push(path[srcIdx]);
+    }
+
+    // =========================================================
+    // 🔥 4. SLOT REMAP 
+    // =========================================================
+
+    // slot index = index in baseOrder
+    // but we assign windows from the rotated PATH
+
+    const newOrder = new Array(baseOrder.length);
+
+    // map: window → index in path
+    const indexInPath = new Map();
+    for (let i = 0; i < path.length; i++) {
+        indexInPath.set(path[i], i);
+    }
+
+    // slot assignment
+    for (let i = 0; i < baseOrder.length; i++) {
+        const slotWindow = baseOrder[i];
+        const idx = indexInPath.get(slotWindow);
+
+        if (idx !== undefined) {
+            newOrder[i] = rotated[idx];
+        } else {
+            newOrder[i] = slotWindow;
+        }
+    }
+
+    // =========================================================
+    // 🔥 5. APPLY
+    // =========================================================
+    setLastTiledOrder(newOrder);
+
+    state._layoutDirty = true;
 
     minimizeIgnoredWindows();
+    sanitizeFloatingBeforeTiling();
+    rebalanceOverflow();
+
     scheduleRelayout();
 
+    // 🔥 focus restore
     if (activeBefore && !activeBefore.deleted) {
         workspace.activeWindow = activeBefore;
         workspace.raiseWindow(activeBefore);
@@ -2350,10 +4134,7 @@ function cycleActiveWindow() {
 // ──────────────────────────────────────────────────────────────
 // MINIMIZE STACK + RESTORE
 // ──────────────────────────────────────────────────────────────
-// =====================================================
-// MINIMIZED STACK – TYLKO NA BIEŻĄCYM PULPICIE / AKTYWNOŚCI / EKRANIE
-// =====================================================
-const minimizedStacks = {};   // key = getStateKey() → array of windows
+
 
 function getMinimizedStack() {
     const key = getStateKey();
@@ -2366,7 +4147,7 @@ function getMinimizedStack() {
 function pushToMinimizedStack(win) {
     if (!win || win.deleted || !win.normalWindow) return;
     const stack = getMinimizedStack();
-    // Usuwamy duplikat jeśli już jest
+    // Remove duplicate if it already exists
     const idx = stack.indexOf(win);
     if (idx > -1) stack.splice(idx, 1);
     stack.push(win);
@@ -2380,10 +4161,10 @@ function restoreLastMinimized() {
 
         if (!w || w.deleted || !w.minimized) continue;
 
-        // Przywracamy okno
+        // Restore window
         w.minimized = false;
 
-        // Przełączamy pulpit i aktywność na ten, na którym było okno
+        // Switch desktop and activity to the one where the window was
         if (w.desktops && w.desktops.length > 0) {
             workspace.currentDesktop = w.desktops[0];
         }
@@ -2418,36 +4199,52 @@ function trackWindowMinimizeRestore(c) {
             if (idx > -1) stack.splice(idx, 1);
         }
 
-        // Auto-retile po restore
+        // ─────────────────────────────────────────────
+        // RESTORE
+        // ─────────────────────────────────────────────
         if (!c.minimized && AUTO_LAYOUT_ON_WINDOW_RESTORE && canAutoRetile()) {
             var timer = new QTimer();
             timer.singleShot = true;
             timer.interval = 100;
+
             timer.timeout.connect(() => {
                 timer.stop();
 
-                // 🔥 INVALIDATE CACHE
                 _visibleCache = null;
 
-                if (canAutoRetile()) scheduleRelayout();
+                if (canAutoRetile()) {
+                    scheduleRelayout();
+
+                    // 🔥 ADD — after restore
+                    rebalanceOverflow();
+                }
             });
-                timer.start();
+
+            timer.start();
         }
 
-        // Auto-retile po minimize
+        // ─────────────────────────────────────────────
+        // MINIMIZE
+        // ─────────────────────────────────────────────
         if (c.minimized && AUTO_LAYOUT_ON_WINDOW_MINIMIZE && canAutoRetile()) {
             var timer = new QTimer();
             timer.singleShot = true;
             timer.interval = 80;
+
             timer.timeout.connect(() => {
                 timer.stop();
 
-                // 🔥 INVALIDATE CACHE
                 _visibleCache = null;
 
-                if (canAutoRetile()) scheduleRelayout();
+                if (canAutoRetile()) {
+                    scheduleRelayout();
+
+                    // 🔥 ADD — after minimize
+                    rebalanceOverflow();
+                }
             });
-                timer.start();
+
+            timer.start();
         }
     });
 
@@ -2552,39 +4349,50 @@ function handleDoubleTapShiftCapsFloatAll() {
 // SMART TILE HANDLER
 // ──────────────────────────────────────────────────────────────
 function smartTileHandler() {
-
     const visible = getVisibleWindows();
-    if (visible.length === 0) return;
-
+    const state = getCurrentState();
     const now = Date.now();
 
-    // 🔥 DOUBLE TAP (bez zmian)
+    // DOUBLE TAP → Maximize all
     if (now - smartTileLastTap < DOUBLE_TAP_THRESHOLD) {
         smartTileLastTap = 0;
         setFirstRowWindowsMode(smartTilePrevFirstRowMode);
-        for (let w of visible) {
-            if (w.maximizable) {
-                w.setMaximize(false, false);
-                w.setMaximize(true, true);
-            }
-        }
-        showOSDSafe("Maximize all", "view-fullscreen");
+        maximizeAll();                    
         return;
     }
 
     smartTileLastTap = now;
 
-    // ==========================================================
-    // 🔥 SINGLE WINDOW → SOFT FULLSCREEN (bez dodatkowego GAP)
-    // ==========================================================
-    if (visible.length === 1) {
+    if (state.maximizedAll) {
+        unmaximizeAll();
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        state.maximizedAll = false;
+        clearLayoutModel();
+        forceRebuildModel();
+        getCurrentState()._layoutDirty = true;
+        scheduleRelayout(0);
+        return;
+    }
 
+    if (visible.length === 0) {
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        state.maximizedAll = false;
+        clearLayoutModel();
+        forceRebuildModel();
+        getCurrentState()._layoutDirty = true;
+        scheduleRelayout(0);
+        showOSDSafe("Tiling mode", "view-grid");
+        return;
+    }
+
+    // Single window → soft fullscreen
+    if (visible.length === 1) {
         const win = visible[0];
         if (!win || win.deleted) return;
-
         const usable = getUsableArea();
         const g = win.frameGeometry;
-
         const target = {
             x: Math.round(usable.x),
             y: Math.round(usable.y),
@@ -2592,50 +4400,34 @@ function smartTileHandler() {
             height: Math.round(usable.height)
         };
 
-        const isFull =
-        Math.abs(g.x - target.x) < 2 &&
-        Math.abs(g.y - target.y) < 2 &&
-        Math.abs(g.width - target.width) < 2 &&
-        Math.abs(g.height - target.height) < 2;
+        const isFull = Math.abs(g.x - target.x) < 2 &&
+                      Math.abs(g.y - target.y) < 2 &&
+                      Math.abs(g.width - target.width) < 2 &&
+                      Math.abs(g.height - target.height) < 2;
 
-        // 🔁 TOGGLE
         if (!isFull) {
-
             scriptGeometryChange = true;
             win.frameGeometry = target;
             scriptGeometryChange = false;
-
-            // 🔥 baseline (kluczowe dla resize)
             lastAppliedGeometry.set(win, target);
-
-            resizeState.delete(win);
-            resizeOriginRect.delete(win);
-
             showOSDSafe("Fullscreen", "view-fullscreen");
-
         } else {
-
-            // powrót do layoutu
             clearLayoutModel();
             forceRebuildModel();
             getCurrentState()._layoutDirty = true;
-
             scheduleRelayout(0);
-
             showOSDSafe("Tiled", "view-grid");
         }
-
         return;
     }
 
-    // ==========================================================
-    // 🔥 RESZTA — BEZ ZMIAN
-    // ==========================================================
-
-    if (exitFloatAllToTiling()) return;
+    if (exitFloatAllToTiling()) {
+        sanitizeFloatingBeforeTiling();
+        rebalanceOverflow();
+        return;
+    }
 
     const anyMax = visible.some(w => w.maximizeMode !== 0);
-
     if (anyMax && visible.length > 1) {
         minimizeIgnoredWindows();
         scheduleRelayout();
@@ -2643,6 +4435,9 @@ function smartTileHandler() {
         smartTilePrevFirstRowMode = getFirstRowWindowsMode();
         cycleFirstRowWindows();
     }
+
+    sanitizeFloatingBeforeTiling();
+    rebalanceOverflow();
 }
 
 
@@ -2665,10 +4460,10 @@ function getMinRowWidth(row) {
 function findNextPossibleLayout(currentMode, ordered, usable) {
     const n = ordered.length;
 
-    // ───── dynamiczny limit Top N (nie więcej niż okien) ─────
+    // ───── dynamic Top N limit (not more than the number of windows) ─────
     const effectiveMaxTop = Math.min(MAX_FIRST_ROW, n);
 
-    const candidates = [-1, 0];                    // Left Master + Auto Grid
+    const candidates = [-1];                    // Left Master + without Auto Grid
 
     // Top 1 … effectiveMaxTop
     for (let i = effectiveMaxTop; i >= 1; i--) {
@@ -2678,16 +4473,16 @@ function findNextPossibleLayout(currentMode, ordered, usable) {
     let idx = candidates.indexOf(currentMode);
     if (idx === -1) idx = 0;
 
-    // Szukamy następnego układu, który jest inny i się mieści
+    // Find the next layout that is different and fits
     for (let i = 1; i < candidates.length + 10; i++) {   // +10 = safety
         const nextMode = candidates[(idx + i) % candidates.length];
 
-        if (nextMode <= 0) {
-            // Auto Grid i Left Master zawsze są dozwolone
+        if (nextMode < 0) {
+            // ---Auto Grid and +++Left Master are always allowed
             return nextMode;
         }
 
-        // Sprawdzenie czy Top N się realnie mieści
+        // Check whether Top N actually fits
         let minSum = 0;
         const count = Math.min(nextMode, n);
         for (let j = 0; j < count; j++) {
@@ -2700,13 +4495,13 @@ function findNextPossibleLayout(currentMode, ordered, usable) {
         }
     }
 
-    return 0; // ostateczny fallback = Auto Grid
+    return -1;
 }
 
 
 
 // ──────────────────────────────────────────────────────────────
-// HELPER: maksymalna liczba okien w pierwszym rzędzie, która się realnie mieści
+// HELPER: maximum number of windows in the first row that can actually fit
 // ──────────────────────────────────────────────────────────────
 function getMaxPossibleFirstRowCount(ordered, usable) {
     if (!ordered || ordered.length === 0) return 1;
@@ -2727,31 +4522,31 @@ function getMaxPossibleFirstRowCount(ordered, usable) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// AUTO-SKIP niemożliwych firstRowMode – przechodzi do następnego możliwego
+// AUTO-SKIP impossible firstRowMode values - moves to the next possible one
 // ──────────────────────────────────────────────────────────────
 function findNextPossibleFirstRowMode(currentMode, ordered, usable) {
-    const possibleModes = [-1, 0]; // Left Master i Auto Grid zawsze na końcu
+    const possibleModes = [-1, 0]; // Left Master and Auto Grid always at the end
 
-    // Dodajemy wszystkie sensowne Top N (od największego do 1)
+    // Add all sensible Top N values (from largest to 1)
     const maxPossible = getMaxPossibleFirstRowCount(ordered, usable);
     for (let n = maxPossible; n >= 1; n--) {
-        possibleModes.unshift(n); // wstawiamy na początek
+        possibleModes.unshift(n); // insert at the beginning
     }
 
-    // Usuwamy duplikaty
+    // Remove duplicates
     const unique = [...new Set(possibleModes)];
 
     let idx = unique.indexOf(currentMode);
     if (idx === -1) idx = 0;
 
-    // Zaczynamy od następnego po obecnym
+    // Start from the next one after the current mode
     for (let i = 1; i < unique.length; i++) {
         const nextIdx = (idx + i) % unique.length;
         const candidate = unique[nextIdx];
 
-        if (candidate <= 0) return candidate; // Left / Auto zawsze akceptujemy
+        if (candidate <= 0) return candidate; // Left / Auto always accepted
 
-        // Sprawdzamy czy ten Top N się mieści
+        // Check whether this Top N fits
         let minSum = 0;
         for (let j = 0; j < candidate && j < ordered.length; j++) {
             minSum += getMinWidth(ordered[j]);
@@ -2761,7 +4556,7 @@ function findNextPossibleFirstRowMode(currentMode, ordered, usable) {
             return candidate;
         }
     }
-    return 0; // fallback na Auto Grid
+    return 0; // fallback to Auto Grid
 }
 
 
@@ -2770,30 +4565,30 @@ function getMinWidth(win) {
         return 240;
     }
 
-    // Najbardziej wiarygodne źródło – minimumSize
+    // Most reliable source - minimumSize
     if (win.minimumSize && typeof win.minimumSize.width === "number" && win.minimumSize.width > 0) {
-        return Math.max(180, Math.min(620, win.minimumSize.width));   // twardy cap
+        return Math.max(180, Math.min(620, win.minimumSize.width));   // hard cap
     }
 
-    // Starsza właściwość (dla kompatybilności)
+    // Older property (for compatibility)
     if (win.minSize && typeof win.minSize.width === "number" && win.minSize.width > 0) {
         return Math.max(180, Math.min(620, win.minSize.width));
     }
 
-    // Fallback na podstawie resourceClass / resourceName
+    // Fallback based on resourceClass / resourceName
     const cls = (win.resourceClass || "").toLowerCase();
     const name = (win.resourceName || "").toLowerCase();
 
     if (cls.includes("brave") || cls.includes("chrome") || cls.includes("chromium") ||
         cls.includes("electron") || cls.includes("vscode") || name.includes("brave")) {
-        return 460;        // bezpieczna wartość dla Brave (działa dobrze w praktyce)
+        return 460;        // safe value for Brave (works well in practice)
     }
 
     if (cls.includes("konsole") || cls.includes("terminal") || cls.includes("kitty") || cls.includes("alacritty")) {
         return 280;
     }
 
-    // Domyślna wartość dla pozostałych aplikacji
+    // Default value for other applications
     return 260;
 }
 
@@ -2823,10 +4618,6 @@ function getMinHeight(win) {
 
     return 180;
 }
-
-
-
-
 
 
 function applyLayoutModel(model, area, skipClient = null) {
@@ -3003,12 +4794,11 @@ function clampLeftMainWidth(newMainW, usable, layoutModel, activeRow = null) {
     const minGridGlobal = getMinGridWidth(layoutModel);
     const minGridRow = activeRow ? getMinRowWidth(activeRow) : 0;
 
-    // 🔥 KLUCZ: bierzemy NAJWIĘKSZE ograniczenie
     const minGrid = Math.max(minGridGlobal, minGridRow);
 
     const maxMain = usable.width - GAP - minGrid;
 
-    // fallback bezpieczeństwa
+    // fallback
     if (maxMain <= minLeft) {
         return minLeft;
     }
@@ -3027,7 +4817,7 @@ function recomputeRowFromDelta(row, usableWidth, winIndex, deltaPx) {
 
     const activeItem = row.windows[winIndex];
 
-    // 👉 wybór sąsiada (jak w mouse resize)
+    // neighbor selection (same as mouse resize)
     let leftItem, rightItem;
 
     if (winIndex < row.windows.length - 1) {
@@ -3036,7 +4826,7 @@ function recomputeRowFromDelta(row, usableWidth, winIndex, deltaPx) {
     } else {
         leftItem = row.windows[winIndex - 1];
         rightItem = activeItem;
-        deltaPx = -deltaPx; // odwrócenie kierunku
+        deltaPx = -deltaPx; // reverse direction
     }
 
     const leftW  = leftItem.widthRatio  * usable;
@@ -3060,7 +4850,7 @@ function recomputeRowFromDelta(row, usableWidth, winIndex, deltaPx) {
 
     const newRightW = pairSum - newLeftW;
 
-    // 🔥 zapis do modelu
+    // 🔥 save to model
     leftItem.widthRatio  = newLeftW / usable;
     rightItem.widthRatio = newRightW / usable;
 }
@@ -3082,21 +4872,20 @@ function getMinRowHeight(row) {
     return maxH;
 }
 
-let accumulatedHeightDelta = 0;
 function recomputeHeightsFromBoundaryDelta(model, usable, upperRowIndex, delta) {
     if (!model || model.rows.length < 2) return;
     if (Math.abs(delta) < 0.8) return;        // filtr szumu
 
     const totalDelta = delta + accumulatedHeightDelta;
 
-    // Jeśli suma nadal za mała – tylko akumulujemy i wychodzimy
-    if (Math.abs(totalDelta) < 5.5) {         // ← próg (dostroisz)
+    // If the sum is still too small - only accumulate and exit
+    if (Math.abs(totalDelta) < 5.5) {         
         accumulatedHeightDelta = totalDelta;
         return;
     }
 
-    // ──────── Mamy wystarczającą sumę → wykonujemy resize ────────
-    accumulatedHeightDelta = 0;               // zerujemy TYLKO po wykorzystaniu
+    // ──────── The sum is sufficient -> perform resize ────────
+    accumulatedHeightDelta = 0;               // reset ONLY after applying
 
     const totalGap = GAP * (model.rows.length - 1);
     const usableH = safeHeightTotal(usable.height - totalGap);
@@ -3123,8 +4912,6 @@ function recomputeHeightsFromBoundaryDelta(model, usable, upperRowIndex, delta) 
 }
 
 
-let accumulatedWidthDelta   = 0;
-
 function recomputeRowFromGeometry(row, usableWidth, activeWin) {
     if (!row || row.windows.length < 2) return;
     if (!activeWin || activeWin.deleted) return;
@@ -3134,7 +4921,7 @@ function recomputeRowFromGeometry(row, usableWidth, activeWin) {
     var g = activeWin.frameGeometry;
     var activeEdges = getActiveResizeEdges(edge, g);
 
-    // Interesuje nas tylko resize lewej lub prawej krawędzi
+    // We only care about resizing the left or right edge
     if (activeEdges.indexOf("left") === -1 && activeEdges.indexOf("right") === -1) return;
 
     var totalGap = GAP * (row.windows.length - 1);
@@ -3156,15 +4943,15 @@ function recomputeRowFromGeometry(row, usableWidth, activeWin) {
 
     if (Math.abs(realDelta) < 0.8) return;
 
-    // ==================== AKUMULATOR DLA SZEROKOŚCI ====================
+    // ==================== WIDTH ACCUMULATOR ====================
     const totalDelta = realDelta + accumulatedWidthDelta;
 
-    if (Math.abs(totalDelta) < 5.5) {           // ← ten sam próg co przy wysokości
+    if (Math.abs(totalDelta) < 5.5) {           
         accumulatedWidthDelta = totalDelta;
         return;
     }
 
-    // Mamy wystarczającą sumę → stosujemy i zerujemy
+    // The sum is sufficient -> apply and reset
     accumulatedWidthDelta = 0;
     // =================================================================
 
@@ -3214,7 +5001,7 @@ function recomputeLeftMainFromGeometry(model, usable, activeWin) {
     const g = activeWin.frameGeometry;
     const realMainW = safeWidth(g.width);
 
-    // ==================== AKUMULATOR DLA LEFT MAIN ====================
+    // ==================== LEFT MAIN ACCUMULATOR ====================
     let totalDelta = (realMainW - (model.leftMain.widthRatio * usable.width)) + accumulatedWidthDelta;
 
     if (Math.abs(totalDelta) < 5.5) {
@@ -3230,7 +5017,7 @@ function recomputeLeftMainFromGeometry(model, usable, activeWin) {
 
     const newGridW = safeWidth(usable.width - newMainW - GAP);
 
-    // Aktualizacja szerokości okien w gridzie
+    // Update grid window widths
     for (let row of model.rows) {
         if (!row.windows || row.windows.length === 0) continue;
         for (let i = 0; i < row.windows.length; i++) {
@@ -3276,7 +5063,7 @@ function recomputeMainFromGridBoundary(model, usable, activeWin, row, winIndex) 
     accumulatedWidthDelta = 0;
     // ====================================================
 
-    let newMainW = currentMainW + totalDelta;   // delta jest już "odwrócona" logiką
+    let newMainW = currentMainW + totalDelta;   // delta is already reversed by logic
     newMainW = clampLeftMainWidth(newMainW, usable, model);
 
     const appliedDelta = newMainW - currentMainW;
@@ -3291,7 +5078,7 @@ function recomputeMainFromGridBoundary(model, usable, activeWin, row, winIndex) 
 
     item.widthRatio = newColW / newGridW;
 
-    // Reszta kolumn w gridzie proporcjonalnie
+    // Remaining grid columns proportionally
     for (let r of model.rows) {
         for (let i = 1; i < r.windows.length; i++) {
             const w = r.windows[i];
@@ -3315,7 +5102,6 @@ function updateLayoutFromGeometry(activeWin) {
     if (!model || !activeWin || activeWin.deleted) return;
     if (scriptGeometryChange) return;
 
-    // 🔥 DODANE: SINGLE WINDOW → NIE INTERFERUJ
     if (
         model.rows &&
         model.rows.length === 1 &&
@@ -3370,7 +5156,7 @@ function updateLayoutFromGeometry(activeWin) {
             }
             else if (targetRow && winIndex === 0) {
 
-                // 🔥 KLUCZ: tylko LEFT = boundary main/grid
+                // 🔥 KEY: only LEFT = main/grid boundary
                 if (edges.includes("left")) {
                     isMainResize = true;
                 } else {
@@ -3425,7 +5211,7 @@ function updateLayoutFromGeometry(activeWin) {
             let useTop = false;
             let useBottom = false;
 
-            // 🔥 KLUCZ: DETEKCJA DOMINUJĄCEGO RUCHU (corner fix)
+            // 🔥 KEY: DOMINANT-MOTION DETECTION (corner fix)
             if (edges.includes("top") && !edges.includes("bottom")) {
                 useTop = true;
             } else if (edges.includes("bottom") && !edges.includes("top")) {
@@ -3551,8 +5337,6 @@ function flushRAF() {
 }
 
 
-
-
 function applyLayoutCoalesced(model, area, skipClient = null) {
 
     coalescedApply = { model, area, skipClient };
@@ -3568,7 +5352,6 @@ function scheduleLiveResizeUpdate(client) {
     const model = getLayoutModel();
     if (!model) return;
 
-    // 🔥 DODANE: SINGLE WINDOW → NIE INTERFERUJ
     if (
         model.rows &&
         model.rows.length === 1 &&
@@ -3640,7 +5423,7 @@ function trackResizeEvents(client) {
 
             invalidateAreaCache();
 
-            lastResizeTime = Date.now();   // 🔥 DODANE
+            lastResizeTime = Date.now();   
 
             if (!isResizing) {
                 isResizing = true;
@@ -3672,7 +5455,6 @@ function trackResizeEvents(client) {
 
                 const model = getLayoutModel();
 
-                // 🔥 SINGLE WINDOW
                 if (
                     model &&
                     model.rows &&
@@ -3722,12 +5504,10 @@ function trackResizeEvents(client) {
         if (scriptGeometryChange) return;
 
 
-        // 🔥 FLOAT ALL BLOCK
         if (getCurrentState().allFloating) return;
 
         const model = getLayoutModel();
 
-        // SINGLE WINDOW → PUŚĆ NATYWNIE
         if (
             model &&
             model.rows &&
@@ -3745,14 +5525,22 @@ function trackResizeEvents(client) {
 function exitFloatAllToTiling() {
 
     const state = getCurrentState();
-    if (!state.allFloating) return false;
+    if (!state.allFloating || state.kwinTilingActive) return false;
 
     const visible = getVisibleWindows();
-    if (!visible || visible.length === 0) return true;
+    if (!visible || visible.length === 0) {
+        state.allFloating = false;
+        state.kwinTilingActive = false;
+        clearLayoutModel();
+        forceRebuildModel();
+        state._layoutDirty = true;
+        scheduleRelayout(0);
+        showOSDSafe("Tiling mode", "view-grid");
+        return true;
+    }
 
     const floatingSet = getFloatingSet();
 
-    // 🔥 cleanup
     resetPreview();
     resizeEdges.clear();
     manualResizeInProgress = false;
@@ -3784,6 +5572,8 @@ function exitFloatAllToTiling() {
     clearLayoutModel();
     forceRebuildModel();
     state._layoutDirty = true;
+    sanitizeFloatingBeforeTiling();
+    rebalanceOverflow();
 
     scheduleRelayout(0);
 
@@ -3798,7 +5588,6 @@ function exitFloatAllToTiling() {
 
     return true;
 }
-
 
 
 function toggleFloatingActiveWindow() {
@@ -3841,14 +5630,12 @@ function toggleFloatingActiveWindow() {
             height: Math.round(g.height)
         };
 
-        // 🔥 usuń z order
         order = order.filter(w => w !== win);
         setLastTiledOrder(order);
 
         getFloatingSet().add(win);
         autoFloating.delete(win);
 
-        // 🔥 reset modelu
         clearLayoutModel();
         forceRebuildModel();
         getCurrentState()._layoutDirty = true;
@@ -3861,7 +5648,6 @@ function toggleFloatingActiveWindow() {
 
         workspace.raiseWindow(win);
 
-        // 🔥 OSD
         showOSDSafe(`Floating:\n${name}`, "window");
 
         return;
@@ -3880,38 +5666,41 @@ function toggleFloatingActiveWindow() {
         setLastTiledOrder(order);
     }
 
-    // 🔥 reset modelu
     clearLayoutModel();
     forceRebuildModel();
     getCurrentState()._layoutDirty = true;
 
     scheduleRelayout(0);
 
-    // 🔥 OSD
     showOSDSafe(`Tiled:\n${name}`, "view-grid");
 
 }
 
 
-function toggleFloatAll() {
-
+function toggleFloatAll(force, options) {
     const state = getCurrentState();
     const visible = getVisibleWindows();
     const hasWindows = visible && visible.length > 0;
-
     const floatingSet = getFloatingSet();
+    const showOSD = !(options && options.showOSD === false);
 
-    // ==========================================================
-    // 🟡 ENTER FLOAT ALL
-    // ==========================================================
-    if (!state.allFloating) {
+    const floatAllActive = !!state.allFloating && !state.kwinTilingActive;
+
+    if (force === true && floatAllActive) return;
+    if (force === false && !floatAllActive) return;
+
+    // === ENTER FLOAT ALL ===
+    if (!floatAllActive) {
+        if (state.kwinTilingActive) {
+            disableKWinTiling();
+            state.kwinTilingActive = false;
+        }
 
         resetPreview();
         resizeEdges.clear();
         manualResizeInProgress = false;
         movingWindow = null;
 
-        // 🔥 snapshot
         if (hasWindows) {
             state._savedOrder = (getLastTiledOrder() || []).slice();
             state._savedLeftRatio = getLeftRatio();
@@ -3924,25 +5713,17 @@ function toggleFloatAll() {
                 floatingSet.add(w);
             }
         } else {
-            // brak okien → tylko ustaw tryb
             state._savedOrder = [];
             state._savedFloating = new Set();
         }
 
         state.allFloating = true;
-
-        if (!hasWindows && DEBUG) {
-            print("toggleFloatAll: no windows → mode only (ENTER)");
-        }
-
-        showOSDSafe("Floating mode", "window");
+        applyBorderMode();
+        if (showOSD) showOSDSafe("Floating mode", "window");
         return;
     }
 
-    // ==========================================================
-    // 🟢 EXIT FLOAT ALL → RESTORE SNAPSHOT
-    // ==========================================================
-
+    // === EXIT FLOAT ALL → RESTORE TILNG ===
     resetPreview();
     resizeEdges.clear();
     manualResizeInProgress = false;
@@ -3960,13 +5741,9 @@ function toggleFloatAll() {
 
     // restore order
     if (hasWindowsNow && state._savedOrder && state._savedOrder.length > 0) {
-
         const valid = state._savedOrder.filter(w =>
-            w &&
-            !w.deleted &&
-            visibleNow.includes(w)
+            w && !w.deleted && visibleNow.includes(w)
         );
-
         setLastTiledOrder(valid);
     }
 
@@ -3979,46 +5756,36 @@ function toggleFloatAll() {
     }
 
     if (hasWindowsNow) {
+        sanitizeFloatingBeforeTiling();  
+        rebalanceOverflow();              
         clearLayoutModel();
         forceRebuildModel();
         state._layoutDirty = true;
-
         scheduleRelayout(0);
-    } else {
-        if (DEBUG) {
-            print("toggleFloatAll: no windows → mode only (EXIT)");
-        }
+        applyBorderMode();
     }
 
-    showOSDSafe("Tiling restored", "view-grid");
+    if (showOSD) showOSDSafe("Tiling mode", "view-grid");
 }
 
 
-
 function tileAllFloatingWindows() {
-
     const visible = getVisibleWindows();
     if (!visible || visible.length === 0) return;
 
     const floatingSet = getFloatingSet();
-
     let order = getLastTiledOrder() || [];
-
     let added = 0;
 
     for (let w of visible) {
-
         if (!w || w.deleted) continue;
-
-        // tylko floating
         if (!floatingSet.has(w)) continue;
 
         floatingSet.delete(w);
-
+        autoFloating.delete(w);        
         if (!order.includes(w)) {
             order.push(w);
         }
-
         added++;
     }
 
@@ -4028,11 +5795,12 @@ function tileAllFloatingWindows() {
     }
 
     setLastTiledOrder(order);
-
-    // 🔥 reset modelu → pełny rebuild
     clearLayoutModel();
     forceRebuildModel();
     getCurrentState()._layoutDirty = true;
+
+    sanitizeFloatingBeforeTiling();  
+    rebalanceOverflow();             
 
     scheduleRelayout(0);
 
@@ -4054,8 +5822,6 @@ function shrinkActiveWindow() {
 }
 
 
-
-
 function resizeActiveWindowByStep(step) {
     const win = workspace.activeWindow;
     if (!win || win.deleted || !win.normalWindow) return;
@@ -4070,7 +5836,6 @@ function resizeActiveWindowByStep(step) {
 
         const EPS = 6;
 
-        // Obliczenie aktualnego stanu okna
         const g = win.frameGeometry;
         const nowFullWidth = 
             Math.abs(g.x - area.x) < EPS && 
@@ -4092,7 +5857,6 @@ function resizeActiveWindowByStep(step) {
                 Math.abs(origin.top - area.y) < EPS &&
                 Math.abs(originH - area.height) < EPS;
 
-            // Zmodyfikowana logika blokad
             if (nowFullWidth && originFullWidth && state.tY > 0) {
                 useX = 0;
             }
@@ -4115,7 +5879,6 @@ function resizeActiveWindowByStep(step) {
         resizeFloatingWindowUnified(win, useX, useY);
 
     } else {
-        // 🔥 UNIFORM MODE
         resizeTiledWindowUnified(win, step/2, step/3, "uniform");
     }
 }
@@ -4124,10 +5887,6 @@ function resizeActiveWindowByStep(step) {
 function resizeFloatingWindow(win, step) {
     resizeFloatingWindowUnified(win, step, step);
 }
-
-
-
-
 
 
 function resizeActiveWindowDirectional(dirX, dirY) {
@@ -4147,7 +5906,6 @@ function resizeActiveWindowDirectional(dirX, dirY) {
 
         let origin = resizeOriginRect.get(win);
 
-        // 🔥 KLUCZOWY FIX — fallback na pierwszy tick
         if (!origin) {
             const g = win.frameGeometry;
             origin = {
@@ -4160,7 +5918,7 @@ function resizeActiveWindowDirectional(dirX, dirY) {
 
         const usable = getUsableArea();
 
-        // 🔥 lokalny układ (bez offsetów)
+        // 🔥 local layout (without offsets)
         const cx = ((origin.left + origin.right) / 2) - usable.x;
         const cy = ((origin.top + origin.bottom) / 2) - usable.y;
 
@@ -4170,7 +5928,6 @@ function resizeActiveWindowDirectional(dirX, dirY) {
         const isRight = cx > screenCx;
         const isTop   = cy < screenCy;
 
-        // 🔥 Twoja reguła
         if (isRight) stepX = -stepX;
         if (isTop)   stepY = -stepY;
 
@@ -4345,6 +6102,9 @@ function resizeTiledWindowUnified(win, stepX, stepY, mode) {
         setLayoutModel(model);
         applyLayoutModel(model, usable);
         syncStateWithModel();
+        getCurrentState()._layoutDirty = false; 
+
+        if (DEBUG) print("resizeTiledWindowUnified: model saved persistently");
     }
 
     // =========================================================
@@ -4570,7 +6330,6 @@ function resizeTiledWindowUnified(win, stepX, stepY, mode) {
 }
 
 
-
 function resizeFloatingWindowUnified(win, stepX, stepY) {
 
     if (!win || win.deleted) return;
@@ -4600,7 +6359,7 @@ function resizeFloatingWindowUnified(win, stepX, stepY) {
     const lastTime = lastInternalResizeTime.get(win) || 0;
     const now = Date.now();
 
-    const INTERNAL_WINDOW_MS = 60; // 🔥 kluczowy próg (możesz dać 40–80)
+    const INTERNAL_WINDOW_MS = 60; 
 
     const isInternalResize = (now - lastTime) < INTERNAL_WINDOW_MS;
 
@@ -4612,14 +6371,12 @@ function resizeFloatingWindowUnified(win, stepX, stepY) {
         Math.abs(g.height - last.height) > 2;
 
         if (manualChange) {
-            // Zamiast return → resetujemy i kontynuujemy z aktualną geometrią
             if (DEBUG) print("KLeftHandTiler: detected manual geometry change after float → resetting resize state");
 
             resizeState.delete(win);
             resizeOriginRect.delete(win);
             lastAppliedGeometry.delete(win);
 
-            // Natychmiast inicjalizujemy na nowo na podstawie obecnej pozycji
             const currentG = win.frameGeometry;
             resizeOriginRect.set(win, {
                 left: currentG.x,
@@ -4740,7 +6497,6 @@ function resizeFloatingWindowUnified(win, stepX, stepY) {
         }
     }
 
-    // 🔥 NOWE – rounding (KLUCZ)
     state.tX = Math.round(state.tX * 100) / 100;
     state.tY = Math.round(state.tY * 100) / 100;
 
@@ -4831,7 +6587,6 @@ function resizeFloatingWindowUnified(win, stepX, stepY) {
     if (newX + newW > maxRight)  newX = maxRight - newW;
     if (newY + newH > maxBottom) newY = maxBottom - newH;
 
-    // 🔥 oznacz jako internal resize
     lastInternalResizeTime.set(win, Date.now());
 
     win.frameGeometry = {
@@ -4883,7 +6638,6 @@ function applyAndSync() {
 
     syncStateWithModel();
 }
-
 
 
 //------------------reorder------------------------------------------------------------------------
@@ -4939,7 +6693,7 @@ function verticalOverlap(a, b) {
     const gb = b.frameGeometry;
     const top    = Math.max(ga.y, gb.y);
     const bottom = Math.min(ga.y + ga.height, gb.y + gb.height);
-    return (bottom - top) > 20;   // ← musi być min. 20 px nakładki w pionie
+    return (bottom - top) > 20;   // ← must be at least 20 px of vertical overlap
 }
 
 function horizontalOverlap(a, b) {
@@ -4947,11 +6701,8 @@ function horizontalOverlap(a, b) {
     const gb = b.frameGeometry;
     const left  = Math.max(ga.x, gb.x);
     const right = Math.min(ga.x + ga.width, gb.x + gb.width);
-    return (right - left) > 20;   // ← min. 20 px nakładki w poziomie
+    return (right - left) > 20;   // ← min. 20 px of horizontal overlap
 }
-
-
-
 
 
 function getAllNeighbors(win, direction) {
@@ -4963,7 +6714,6 @@ function getAllNeighbors(win, direction) {
 
         if (!w || w === win || w.deleted) continue;
 
-        // 🔥 KLUCZ: tylko tiled (model = prawda)
         if (!isWindowTiled(w)) continue;
 
         if (direction === "right") {
@@ -5062,7 +6812,6 @@ function getBestNeighborInDirection(win, direction) {
 }
 
 
-
 function swapWindowsInOrder(w1, w2) {
 
     const order = getLastTiledOrder();
@@ -5075,7 +6824,6 @@ function swapWindowsInOrder(w1, w2) {
 
     setLastTiledOrder(order);
 }
-
 
 function swapWindowInDirection(direction) {
 
@@ -5209,14 +6957,14 @@ function moveWindowInDirection(direction) {
     }
 
     // ==========================================================
-    // 🪟 FLOATING → PURE PIXEL MOVE (🔥 KLUCZ)
+    // 🪟 FLOATING 
     // ==========================================================
     scriptGeometryChange = true;
 
     try {
 
         const g = win.frameGeometry;
-        const step = 60; // możesz zwiększyć
+        const step = 60; // you can increase it
 
         let dx = 0, dy = 0;
 
@@ -5242,31 +6990,6 @@ function moveWindowInDirection(direction) {
 // ──────────────────────────────────────────────────────────────
 // MANUAL DROP REORDER
 // ──────────────────────────────────────────────────────────────
-
-const PREVIEW_THROTTLE_MS = 60;
-
-const TARGET_LOCK_THRESHOLD   = 0.22; // trzymanie targetu
-const TARGET_SWITCH_THRESHOLD = 0.38; // zmiana targetu
-
-const CENTER_RATIO = 0.28; // strefa swap (procent okna)
-const DEADZONE_PX  = 14;   // brak reakcji na mikro ruch
-
-
-// ==========================================================
-// 🔧 STATE
-// ==========================================================
-
-let previewTimer = null;
-let lastPreviewTime = 0;
-let lastPreviewSignature = null;
-
-let previewActive = false;
-let previewOrderBackup = null;
-
-let lockedTarget = null;
-let lockedTargetIndex = -1;
-let lastDropDecision = null;
-let baseGeometries = null;
 
 
 function schedulePreview(win) {
@@ -5404,7 +7127,6 @@ function previewDropStable(win) {
     const order = getLastTiledOrder();
     if (!order || order.length < 2) return;
 
-    // 🔥 SNAPSHOT tylko raz
     if (!previewActive) {
 
         baseGeometries = new Map();
@@ -5472,7 +7194,6 @@ function previewDropStable(win) {
 
     lastPreviewSignature = signature;
 
-    // 🔥 cache decyzji do drop
     lastDropDecision = decision;
 
     let previewOrder = order.slice();
@@ -5578,10 +7299,8 @@ function trackMoveEvents(c) {
 
             manualResizeInProgress = false;
 
-            // 🔥 NAJPIERW COMMIT
             handleManualDrop(c);
 
-            // 🔥 POTEM RESET (KLUCZ FIX)
             resetPreview();
 
             movingWindow = null;
@@ -5594,7 +7313,6 @@ function trackMoveEvents(c) {
 
     });
 
-    // 🔥 LIVE PREVIEW
     c.frameGeometryChanged.connect(() => {
 
         if (!c.move) return;
@@ -5621,37 +7339,102 @@ var relayoutTimer = new QTimer();
 relayoutTimer.singleShot = true;
 relayoutTimer.interval = 100;
 relayoutTimer.timeout.connect(function () {
+    _lastRelayoutRunTs = Date.now();
     reLayout();
 });
 
+var defaultModeTimer = new QTimer();
+defaultModeTimer.singleShot = true;
+defaultModeTimer.interval = 0;
+defaultModeTimer.timeout.connect(function () {
+    applyDefaultDesktopModeIfNeeded();
+});
+
+function scheduleApplyDefaultDesktopMode(delay) {
+    if (typeof delay === "undefined") delay = 0;
+    defaultModeTimer.stop();
+    defaultModeTimer.interval = delay;
+    defaultModeTimer.start();
+}
+
+function applyDefaultDesktopModeIfNeeded() {
+    const state = getCurrentState();
+    if (!state || state._defaultModeApplied) return;
+
+    state._defaultModeApplied = true;
+
+    if (DEFAULT_DESKTOP_MODE === 0) {
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        state.maximizedAll = false;
+        scheduleRelayout(0);
+        return;
+    }
+
+    if (DEFAULT_DESKTOP_MODE === 1) {
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        state.maximizedAll = false;
+        applyKWinTiling();
+        return;
+    }
+
+    if (DEFAULT_DESKTOP_MODE === 2) {
+        if (state.kwinTilingActive) {
+            disableKWinTiling();
+            state.kwinTilingActive = false;
+        }
+        state.allFloating = false;
+        state.maximizedAll = false;
+        toggleFloatAll(true, { showOSD: false });
+        return;
+    }
+
+    if (DEFAULT_DESKTOP_MODE === 3) {
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        maximizeAll();
+    }
+}
+
 
 function scheduleRelayout(delay) {
+    const state = getCurrentState();
+
+    if (state.maximizedAll) return;
+
+    if (state.kwinTilingActive) {
+        disableKWinTiling();
+    }
 
     if (typeof delay === 'undefined') delay = 100;
 
-    if (getCurrentState().allFloating) return;
+    if (state.allFloating) return;
 
-    // 🔥 RESIZE WATCHDOG (naprawa stuck resize)
     if (manualResizeInProgress && delay !== 0) {
 
         const now = Date.now();
 
-        // jeśli resize był niedawno → blokuj
         if (now - lastResizeTime < 500) {
             if (DEBUG) print("scheduleRelayout blocked (resize active)");
             return;
         }
 
-        // 🔥 jeśli resize się “zgubił” → reset
         if (DEBUG) print("scheduleRelayout: resize timeout → force unlock");
 
         manualResizeInProgress = false;
         resizeEdges.clear();
     }
 
-    // 🔥 natychmiastowy tryb (ważne)
     if (delay === 0) {
+        const now = Date.now();
+        const forcePending = !!getWS().layoutMeta.force;
+        if (!state._layoutDirty && !forcePending && (now - _lastRelayoutRunTs) < 80) {
+            if (DEBUG) print("scheduleRelayout: coalesced immediate call");
+            return;
+        }
         relayoutTimer.stop();
+        _lastRelayoutRunTs = now;
         reLayout();
         return;
     }
@@ -5729,115 +7512,288 @@ workspace.windowList().forEach(attachDesktopChangeHandler);
 
 
 function isIgnoredSpecialWindow(client) {
-    if (!client) return false;
+    if (!client) return true;
+
     const rClass = (client.resourceClass || "").toLowerCase();
-    const rName = (client.resourceName || "").toLowerCase();
-    return IGNORED_RESOURCE_CLASSES.some(cls => rClass.includes(cls)) ||
-           IGNORED_RESOURCE_NAMES.some(name => rName.includes(name));
+    const rName  = (client.resourceName || "").toLowerCase();
+    const caption = (client.caption || "").trim();
+
+    const w = client.frameGeometry ? client.frameGeometry.width : 0;
+    const h = client.frameGeometry ? client.frameGeometry.height : 0;
+
+        // if (DEBUG) {
+        // print("---- NEW WINDOW DEBUG ----");
+        // print("caption:", client.caption);
+        // print("resourceClass:", client.resourceClass);
+        // print("resourceName:", client.resourceName);
+        // print("windowRole:", client.windowRole);
+        // print("wmClass:", client.resourceClass);
+        // print("minSize:", client.minSize ? client.minSize.width + "x" + client.minSize.height : "none");
+        // print("minimumSize:", client.minimumSize ? client.minimumSize.width + "x" + client.minimumSize.height : "none");
+        // print("geometry:", client.frameGeometry.width + "x" + client.frameGeometry.height);
+        // print("---------------------------");
+        // }
+
+
+    if (isLauncher(client)) return true;
+
+    if (!rClass && !rName && !caption) 
+        return true;
+        
+    
+    if (client.popup) 
+        return true;
+     
+    return false;
+}
+
+function isIgnoredTransientDialog(client) {
+    if (!client) return true;
+
+    const rClass = (client.resourceClass || "").toLowerCase();
+    const rName  = (client.resourceName || "").toLowerCase();
+
+    if (
+        IGNORED_RESOURCE_CLASSES.some(cls => rClass.includes(cls)) ||
+        IGNORED_RESOURCE_NAMES.some(name => rName.includes(name))
+    ) {
+        return true;
+    }
+
+  return !!(client.transient || client.modal);
 }
 
 workspace.windowAdded.connect(client => {
     if (!client) return;
-    _visibleCache = null;
+
+    const clientLabel = client.caption || client.resourceClass || client.resourceName || "?";
+    const addedDesktopId = getCurrentDesktopIdentifier();
+    const addedActivityId = getCurrentActivityId();
+    const addedScreen = getScreenForWindow(client);
+    const addedScreenId = getScreenIdForTarget(addedScreen);
 
     if (DEBUG) {
-        print("---- NEW WINDOW DEBUG ----");
-        print("caption:", client.caption);
-        print("resourceClass:", client.resourceClass);
-        print("resourceName:", client.resourceName);
-        print("windowRole:", client.windowRole);
-        print("wmClass:", client.resourceClass);
-        print("minSize:", client.minSize ? client.minSize.width + "x" + client.minSize.height : "none");
-        print("minimumSize:", client.minimumSize ? client.minimumSize.width + "x" + client.minimumSize.height : "none");
-        print("geometry:", client.frameGeometry.width + "x" + client.frameGeometry.height);
-        print("---------------------------");
+        print(`[windowAdded] "${clientLabel}" screen=${addedScreenId} active=${getScreenIdForTarget(workspace.activeScreen)} desktop=${addedDesktopId} activity=${addedActivityId}`);
     }
 
-    // 🔥 TRACKUJ ZAWSZE
+    if (isIgnoredSpecialWindow(client)) {
+        if (DEBUG) print("IGNORED WINDOW:", client.frameGeometry.width + "x" + client.frameGeometry.height);
+        return;
+    }
+
+    if (IGNORE_TRANSIENT_WINDOWS && isIgnoredTransientDialog(client)) return;
+
+    _visibleCache = null;
+
     trackMoveEvents(client);
     trackResizeEvents(client);
     trackWindowMinimizeRestore(client);
     attachDesktopChangeHandler(client);
 
-    // 🔥 IGNORE
-    if (isLauncher(client)) return;
-    if (isIgnoredSpecialWindow(client)) return;
-    if (IGNORE_TRANSIENT_WINDOWS && (client.transient || client.modal)) return;
+    withScreenContext(addedScreen, () => {
+        const state = getCurrentState();
 
-    // 🔥 FLOAT ALL MODE → zawsze floating, zero tilingu
-    if (getCurrentState().allFloating) {
-        getFloatingSet().add(client);
-        return;
-    }
+        if (state.maximizedAll) {
+            let maximizeTimer = new QTimer();
+            maximizeTimer.singleShot = true;
+            maximizeTimer.interval = 0;
+            maximizeTimer.timeout.connect(() => {
+                maximizeTimer.stop();
 
-    // 🔥 NORMALNA LOGIKA AUTO-RETILE
-    if (!(AUTO_LAYOUT_ON_NEW_WINDOW && canAutoRetile())) return;
+                const runtimeScreen = getScreenForWindow(client);
+                withScreenContext(runtimeScreen, () => {
+                    if (!client || client.deleted) return;
+                    if (isIgnoredSpecialWindow(client)) return;
+                    if (IGNORE_TRANSIENT_WINDOWS && isIgnoredTransientDialog(client)) return;
+                    if (!getCurrentState().maximizedAll) return;
 
-    let timer = new QTimer();
-    timer.interval = 160;
+                    if (DEBUG) print(`[windowAdded/max] "${clientLabel}" maximize on screen=${runtimeScreen}`);
 
-    timer.timeout.connect(() => {
-        timer.stop();
-        const vis = getVisibleWindows();
-        const tiled = getTiledOrder();
-
-        if (!client || client.deleted) return;
-        if (isLauncher(client) || isIgnoredSpecialWindow(client)) return;
-        if (IGNORE_TRANSIENT_WINDOWS && (client.transient || client.modal)) return;
-
-        const { ordered, visible } = getTiledOrder();
-
-        const usable = getUsableArea();
-
-        if (visible.length > MAX_WINDOWS) {
-            getFloatingSet().add(client);
-            showOSDSafe(`Too many windows!\nTiling only ${MAX_WINDOWS}`, "dialog-warning");
-            scheduleRelayout(0);
+                    if (client.maximizable) {
+                        client.setMaximize(true, true);
+                    }
+                });
+            });
+            maximizeTimer.start();
             return;
         }
 
-        let testOrdered = ordered.slice();
-        if (!testOrdered.includes(client)) testOrdered.push(client);
-
-        const testModel = buildAndValidateModel(testOrdered, usable);
-
-        if (!testModel) {
-            getFloatingSet().add(client);
-            autoFloating.add(client);
-            const name = client.caption || client.resourceClass || "?";
-            showOSDSafe("No space in the tile for:\n" + name, "dialog-warning");
-            scheduleRelayout(0);
+        if (!AUTO_LAYOUT_ON_NEW_WINDOW) {
+            if (DEBUG) print(`[windowAdded] auto-layout disabled "${clientLabel}"`);
             return;
         }
 
-        getFloatingSet().delete(client);
-        autoFloating.delete(client);
+        if (!state.kwinTilingActive && !canAutoRetile()) {
+            if (DEBUG) print(`[windowAdded] skip auto-retile "${clientLabel}" screen=${addedScreenId} kwin=${state.kwinTilingActive}`);
+            debugWindowVisibility(client, "windowAdded/skip");
+            return;
+        }
 
-        // Force-include new window in order (nawet jeśli jeszcze nie widać w visible)
-        let order = getLastTiledOrder();
-        if (!order.includes(client)) {
-            order.push(client);
-            setLastTiledOrder(order);
+        if (state.kwinTilingActive) {
+
+            const root = workspace.rootTile(addedScreen, workspace.currentDesktop);
+
+            if (root) {
+
+                function collectLeaves(tile, out = []) {
+                    if (tile.tiles && tile.tiles.length > 0) {
+                        tile.tiles.forEach(child => collectLeaves(child, out));
+                    } else {
+                        out.push(tile);
+                    }
+                    return out;
+                }
+
+                const leaves = collectLeaves(root);
+                const limit = leaves.length;
+
+                const windows = getVisibleWindows()
+                    .filter(w => w && !w.deleted && !w.minimized && !w.skipTaskbar);
+
+                if (DEBUG) {
+                    print(`[windowAdded/kwin] "${clientLabel}" screen=${addedScreenId}`);
+                    print("windows:", windows.length);
+                    print("tiles:", limit);
+                }
+
+                if (windows.length > limit) {
+
+                    if (DEBUG) print("KWIN OVERFLOW → moving window");
+
+                    getFloatingSet().add(client);
+                    autoFloating.add(client);
+
+                    moveWindowToOverflow(client, { source: "new_window" });
+
+                    return;
+                }
+
+                if (AUTO_LAYOUT_ON_NEW_WINDOW) {
+                    if (DEBUG) print("KWIN APPLY TILE");
+                    applyKWinTiling({ screen: addedScreen, source: "windowAdded" });
+                }
+
+                return; 
+            } else if (DEBUG) {
+                print(`[windowAdded/kwin] no root on screen=${addedScreenId}`);
+            }
+        }
+
+        // ─────────────────────────────────────────────
+        // 🔥 FLOAT ALL MODE 
+        // ─────────────────────────────────────────────
+        if (getCurrentState().allFloating) {
+            getFloatingSet().add(client);
+            return;
         }
 
 
+        {
+            const { ordered } = getTiledOrder();
 
-        const model = getLayoutModel();
+            if (ordered && ordered.length > MAX_WINDOWS) {
 
-        // 🔥 FIX 1: model jeszcze nie istnieje
-        if (!model) {
-            clearLayoutModel();
-            forceRebuildModel();
-        } else {
-            getCurrentState()._layoutDirty = true;
+                if (DEBUG) print("EARLY OVERFLOW → skipping tiling");
+
+                getFloatingSet().add(client);
+                autoFloating.add(client);
+
+                moveWindowToOverflow(client, { source: "new_window" });
+
+                return;
+            }
         }
 
-        scheduleRelayout();
 
+        const startDesktop = getCurrentDesktopIdentifier();
+        const startActivity = getCurrentActivityId();
+        let startScreen = addedScreen;
+        let startScreenId = addedScreenId;
 
+        let timer = new QTimer();
+        timer.interval = 0;
+
+        timer.timeout.connect(() => {
+            timer.stop();
+
+            if (!client || client.deleted) return;
+            if (isIgnoredSpecialWindow(client)) return;
+            if (IGNORE_TRANSIENT_WINDOWS && isIgnoredTransientDialog(client)) return;
+
+            const runtimeDesktop = getCurrentDesktopIdentifier();
+            const runtimeActivity = getCurrentActivityId();
+            if (runtimeDesktop !== startDesktop) {
+                if (DEBUG) print(`ABORT windowAdded: desktop changed during timer ${startDesktop} -> ${runtimeDesktop}`);
+                return;
+            }
+            if (runtimeActivity !== startActivity) {
+                if (DEBUG) print(`ABORT windowAdded: activity changed during timer ${startActivity} -> ${runtimeActivity}`);
+                return;
+            }
+
+            const runtimeScreen = getScreenForWindow(client);
+            const runtimeScreenId = getScreenIdForTarget(runtimeScreen);
+            if (runtimeScreenId !== startScreenId) {
+                if (DEBUG) print(`[windowAdded] client screen changed ${startScreenId} -> ${runtimeScreenId}; switching context`);
+                startScreen = runtimeScreen;
+                startScreenId = runtimeScreenId;
+            }
+
+            withScreenContext(startScreen, () => {
+                const { ordered, visible } = getTiledOrder();
+                const usable = getUsableArea();
+
+                let testOrdered = ordered.slice();
+                if (!testOrdered.includes(client)) testOrdered.push(client);
+
+                const testModel = buildAndValidateModel(testOrdered, usable);
+
+                if (!testModel) {
+                    if (DEBUG) print("MODEL INVALID → overflow");
+
+                    getFloatingSet().add(client);
+                    autoFloating.add(client);
+
+                    moveWindowToOverflow(client, { source: "new_window" });
+
+                    scheduleRelayout(0);
+                    return;
+                }
+
+                getFloatingSet().delete(client);
+                autoFloating.delete(client);
+
+                let order = getLastTiledOrder();
+                let orderChanged = false;
+                if (!order.includes(client)) {
+                    order.push(client);
+                    setLastTiledOrder(order);
+                    orderChanged = true;
+                }
+
+                const model = getLayoutModel();
+
+                if (!model) {
+                    clearLayoutModel();
+                    forceRebuildModel();
+                } else if (orderChanged) {
+                    getCurrentState()._layoutDirty = true;
+                } else if (DEBUG) {
+                    print(`[windowAdded] duplicate add signal ignored for "${clientLabel}"`);
+                }
+
+                if (DEBUG) {
+                    print(`[windowAdded] scheduleRelayout "${clientLabel}" screen=${startScreenId} visible=${visible.length}`);
+                }
+
+                if (!model || orderChanged) {
+                    scheduleRelayout();
+                }
+            });
+        });
+
+        timer.start();
     });
-
-    timer.start();
 });
 // ──────────────────────────────────────────────────────────────
 // WINDOW REMOVED
@@ -5846,12 +7802,10 @@ function isWindowInLayoutModel(model, client) {
 
     if (!model || !client) return false;
 
-    // LEFT MAIN
     if (model.leftMain && model.leftMain.win === client) {
         return true;
     }
 
-    // GRID / ROWS
     if (model.rows) {
         for (let row of model.rows) {
             for (let item of row.windows) {
@@ -5939,7 +7893,7 @@ function isWindowInLayoutModel(model, client) {
      }
 
      // ─────────────────────────────────────────────
-     // WORKSPACE STATE (KLUCZOWE!)
+     // WORKSPACE STATE
      // ─────────────────────────────────────────────
      for (let key in workspaceState) {
          const ws = workspaceState[key];
@@ -5996,7 +7950,7 @@ function isWindowInLayoutModel(model, client) {
      _visibleCache = null;
 
      // ─────────────────────────────────────────────
-     // EXTRA SAFETY: purge deleted z map
+     // EXTRA SAFETY: purge deleted entries from maps
      // ─────────────────────────────────────────────
      for (let [w] of resizeState) {
          if (!w || w.deleted) resizeState.delete(w);
@@ -6011,10 +7965,21 @@ function isWindowInLayoutModel(model, client) {
 
 function handleWindowRemoved(client) {
     if (!client) return;
+
+    if (isLauncher(client)) return;
+    if (isIgnoredSpecialWindow(client)) return;
+    if (IGNORE_TRANSIENT_WINDOWS && isIgnoredTransientDialog(client)) return;
     if (DEBUG) print("handleWindowRemoved:", client.caption || client.resourceClass || "?");
 
+
+    const model = getLayoutModel();
+    if (!isWindowInLayoutModel(model, client)) {
+        if (DEBUG) print("IGNORED REMOVE (not in model):", client.resourceClass);
+        return;
+    }
+
     // ─────────────────────────────────────────────
-    // CZY OKNO BYŁO TILE'OWANE
+    // WAS THE WINDOW TILED
     // ─────────────────────────────────────────────
     let wasTiled = false;
     try {
@@ -6023,11 +7988,11 @@ function handleWindowRemoved(client) {
             wasTiled = currentOrder.includes(client);
         }
     } catch (e) {}
+
     // 🔥 SLOT SAVE (NOWE)
     try {
         const { ordered } = getTiledOrder();
-        const idx = order.indexOf(client);
-
+        const idx = ordered.indexOf(client);   
         if (idx !== -1) {
             lastFreedSlot = idx;
             if (DEBUG) print("SLOT FREED:", idx);
@@ -6035,16 +8000,23 @@ function handleWindowRemoved(client) {
     } catch (e) {}
 
     // ─────────────────────────────────────────────
-    // 🔥 CENTRALNY CLEANUP (ZAMIENIA ROZPROSZONE DELETE)
+    // CLEANUP
     // ─────────────────────────────────────────────
     cleanupWindow(client);
 
     // ─────────────────────────────────────────────
-    // 🔥 NOWA LOGIKA: NATYCHMIASTOWY RECLAIM AUTO-FLOATING
+    // RECLAIM AUTO-FLOATING
     // ─────────────────────────────────────────────
     const state = getCurrentState();
+    const currentDesktop = workspace.currentDesktop; 
     const floating = Array.from(getFloatingSet())
-    .filter(w => autoFloating.has(w));
+        .filter(w =>
+            autoFloating.has(w) &&
+            w &&
+            !w.deleted &&
+            w.desktops &&
+            w.desktops.includes(currentDesktop)   
+        );
 
     if (floating.length > 0 && AUTO_LAYOUT_ON_WINDOW_CLOSE && canAutoRetile()) {
         if (DEBUG) print(`Window removed → trying to reclaim ${floating.length} auto-floating windows`);
@@ -6053,57 +8025,43 @@ function handleWindowRemoved(client) {
 
         if (reclaimed) {
             if (DEBUG) print("RECLAIM succeeded immediately after close");
+
             clearLayoutModel();
             forceRebuildModel();
             state._layoutDirty = true;
-            scheduleRelayout(0);   // natychmiastowy rebuild
+
+            scheduleRelayout(0);
+
+            rebalanceOverflow();
         }
     }
 
     // ─────────────────────────────────────────────
-    // JEŚLI OKNO BYŁO TILE → RESET MODELU
+    // RESET MODELU
     // ─────────────────────────────────────────────
     if (wasTiled) {
         if (DEBUG) print("WINDOW REMOVED → force rebuild");
+
         clearLayoutModel();
         forceRebuildModel();
+
         const state = getCurrentState();
         if (state) state._layoutDirty = true;
     }
 
     // ─────────────────────────────────────────────
-    // AUTO-RELAYOUT (Twoja oryginalna logika)
+    // AUTO-RELAYOUT
     // ─────────────────────────────────────────────
-    let shouldRelayout = false;
     if (AUTO_LAYOUT_ON_WINDOW_CLOSE && canAutoRetile()) {
-        if (IGNORE_TRANSIENT_WINDOWS && (client.transient || client.modal)) {
-            // ignore
-        } else if (IGNORE_TRANSIENT_WINDOWS && isIgnoredSpecialWindow(client)) {
-            // ignore
-        } else if (isLauncher(client)) {
-            // ignore
-        } else {
-            shouldRelayout = true;
-        }
-    }
-
-    // ─────────────────────────────────────────────
-    // RELAYOUT
-    // ─────────────────────────────────────────────
-    if (shouldRelayout) {
+      if (
+        !isIgnoredSpecialWindow(client) &&
+        (!IGNORE_TRANSIENT_WINDOWS || !isIgnoredTransientDialog(client))
+      ) {
         scheduleRelayout();
+        rebalanceOverflow();
+      }
     }
 
-    // ─────────────────────────────────────────────
-    // DEBUG
-    // ─────────────────────────────────────────────
-    if (DEBUG) {
-        try {
-            const model = getLayoutModel();
-            const count = model && model._count;
-            print("handleWindowRemoved done. model._count =", count);
-        } catch (e) {}
-    }
 }
 
 if (typeof workspace.windowRemoved === 'function') {
@@ -6112,14 +8070,14 @@ if (typeof workspace.windowRemoved === 'function') {
     workspace.clientRemoved.connect(handleWindowRemoved);
 }
 
-let lastScreenCount = workspace.screens?.length ?? 0;
 
 function updateScreenCache() {
     const currentCount = workspace.screens?.length ?? 0;
-
-    if (currentCount < lastScreenCount) {
-        if (DEBUG) print("Screen removed → retile");
+    if (currentCount !== lastScreenCount) {
+        if (DEBUG) print(`[SCREENS] count changed ${lastScreenCount} -> ${currentCount}`);
         cachedScreenId = null;
+        _visibleCache = null;
+        invalidateAreaCache();
         scheduleRelayout(150);
     }
 
@@ -6190,8 +8148,31 @@ if (typeof workspace.activitiesChanged === "function") {
 }
 
 workspace.screensChanged.connect(invalidateAreaCache);
-workspace.currentDesktopChanged.connect(invalidateAreaCache);
 
 if (workspace.currentActivityChanged) {
     workspace.currentActivityChanged.connect(invalidateAreaCache);
 }
+
+workspace.windowRemoved.connect(function(win) {
+  if (!AUTO_REMOVE_EMPTY_DESKTOPS) return;
+  cleanupEmptyDesktops();
+});
+
+workspace.currentDesktopChanged.connect(() => {
+    _visibleCache = null;
+    sanitizeFloatingBeforeTiling();
+    rebalanceOverflow();
+    scheduleApplyDefaultDesktopMode(0);
+    if (AUTO_REMOVE_EMPTY_DESKTOPS) {
+        cleanupEmptyDesktops();
+    }
+ //   scheduleRelayout();
+});
+
+const state = getCurrentState();
+if (typeof state.kwinTilingActive === "undefined") state.kwinTilingActive = false;
+if (typeof state.maximizedAll === "undefined") state.maximizedAll = false;
+if (typeof state.allFloating === "undefined") state.allFloating = false;
+if (typeof state._defaultModeApplied === "undefined") state._defaultModeApplied = false;
+
+scheduleApplyDefaultDesktopMode(0);
