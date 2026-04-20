@@ -152,7 +152,7 @@ Optional:
 
 | Shortcut                  | Action                                      |
 |--------------------------|---------------------------------------------|
-| `Ctrl + ~`               | Smart Tile / Cycle layouts                  |
+| `Ctrl + Shift + ``               | Smart Tile / Cycle layouts                  |
 | `Ctrl + Shift + F1`      | Cycle Tile Modes (Tiling → KWin Tiling → Float All → Maximize All) |
 | `Ctrl + Shift + F2`      | Cycle main ratio presets                    |
 | `Ctrl + Shift + F3`      | Cycle auto-retile mode (Off / Tiled only / Always) |
@@ -187,7 +187,7 @@ Optional:
 |---------------------|---------------------------------------------|
 | `Ctrl + ``          | Toggle maximize / minimize (double tap = minimize) |
 | `Ctrl + CapsLock` (double) | Toggle fullscreen                    |
-| `Ctrl + !`          | Restore last minimized window               |
+| `Ctrl + Shift 1`          | Restore last minimized window               |
 
 ### KWin Integration
 
