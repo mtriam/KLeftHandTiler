@@ -16,7 +16,7 @@
             <item>
                 <widget class="QLabel">
                     <property name="text">
-                        <string>After changing any setting, you must &lt;b&gt;disable and then re-enable&lt;/b&gt; the script&lt;br&gt;for the new values to take effect.</string>
+                        <string>After changing any setting, you must &lt;b&gt;disable and then re-enable&lt;/b&gt; the script for the new values to take effect.</string>
                     </property>
                     <property name="wordWrap"><bool>true</bool></property>
                     <property name="alignment"><set>Qt::AlignCenter</set></property>
@@ -29,7 +29,7 @@
             <item>
                 <widget class="QLabel">
                     <property name="text">
-                        <string>&lt;b&gt;Default startup/new desktop modes:&lt;/b&gt;</string>
+                        <string>&lt;b&gt;Default startup/new desktop settings:&lt;/b&gt;</string>
                     </property>
                 </widget>
             </item>

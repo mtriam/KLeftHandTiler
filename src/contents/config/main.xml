@@ -125,5 +125,20 @@
             <default>false</default>
         </entry>
 
+        <entry name="SLOT_1" type="String">
+            <label>Snapshot slot 1 (text payload)</label>
+            <default></default>
+        </entry>
+
+        <entry name="SLOT_2" type="String">
+            <label>Snapshot slot 2 (text payload)</label>
+            <default></default>
+        </entry>
+
+        <entry name="SLOT_3" type="String">
+            <label>Snapshot slot 3 (text payload)</label>
+            <default></default>
+        </entry>
+
     </group>
 </kcfg>

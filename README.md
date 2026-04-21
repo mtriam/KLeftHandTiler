@@ -5,24 +5,39 @@
 ![KWin Script](https://img.shields.io/badge/KWin-script-orange)
 ![GitHub stars](https://img.shields.io/github/stars/mtriam/KLeftHandTiler?style=social)
 
-**Window tiling script for KWin (KDE Plasma 6+)**
+**Advanced window layout engine for KWin (KDE Plasma 6+)**
 
-Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,  
-**drag-to-reorder windows**, and a **constraint-aware layout engine with live resize**.
+A tiling and workspace management script with  
+**left-hand optimized shortcuts**,  
+**independent layouts per desktop and activity**,  
+**drag-and-drop reordering**,  
+**layout snapshots and restoration**, and a  
+**constraint-aware engine with live resize and predictable behavior**.
 
+--
+## 🚀 Whats' new in v.2.4
+- Persistent snapshots — saved layouts now **survive logout and reboot**.
+
+Enable with:
+```
+wget https://raw.githubusercontent.com/mtriam/KLeftHandTiler/main/kleft-save-install.sh
+chmod +x kleft-save-install.sh
+./kleft-save-install.sh
+```
+- Fix auto-float reclaim exceeding max tiled windows after window removal.
+- README improvements.
 ---
-
 ## 🚀 What's new in v2.3
 
 - 🖥️ **Full Multi-Monitor Support** — each monitor now has completely independent tiling state (layout, ratios, window order, floating windows, etc.)
-- 💾 **Snapshots / Saved Layouts** — save and restore tiling or floating layouts (Ctrl+Shift+F5, F6, F7 + Cycle with Ctrl+Meta+`)
-- 🧩 **KWin Native Tiling Mode** — new mode accessible via Ctrl+Shift+F1 (cycles: Normal Tiling → KWin Tiling → Float All → Maximize All)
-- 🔄 **Window Rotation (All Modes)** — circular motion, keeps focus (Shift+Ctrl+Esc)
-- 🌊 **Improved Overflow Behavior** — multiple configurable overflow modes (float, move to other workspace, create new, minimize)
+- 💾 **Snapshots / Saved Layouts** — save and restore tiling or floating layouts (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F5</kbd>, <kbd>F6</kbd>, <kbd>F7</kbd> + cycle with <kbd>Ctrl</kbd> + <kbd>Meta</kbd> + <kbd>`</kbd>)
+- 🧩 **KWin Native Tiling Mode** — new mode accessible via <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd> (cycles: Normal Tiling → KWin Tiling → Float All → Maximize All) or via <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>`</kbd>
+- 🔄 **Window Rotation (All Modes)** — circular motion, keeps focus (<kbd>Shift</kbd> + <kbd>Ctrl</kbd> + <kbd>Esc</kbd>)
+- 🌊 **Improved Overflow Behavior** — multiple configurable overflow modes (float, move to other workspace, create new)
 - ⌨️ **Keyboard Shortcuts**:
-  - `Ctrl+Shift+F1` — Cycle tile modes (Normal / KWin / Float / Maximize)
-  - `Ctrl+Shift+F2` — Cycle main ratio presets
-  - `Ctrl+Shift+F3` — Cycle auto-retile mode
+  - <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd> — Cycle tile modes (Normal / KWin / Float / Maximize)
+  - <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F2</kbd> — Cycle main ratio presets
+  - <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F3</kbd> — Cycle auto-retile mode
 - 🧱 **Better First Row Handling** — removed problematic Auto Grid mode that caused duplication; more predictable and stable layouts
 - 🪟 **Dialogs & Transient Windows** — significantly improved ignoring of dialogs, tooltips, and portal windows
 
@@ -41,67 +56,66 @@ Designed for **left-hand keyboard shortcuts**, **per-desktop/activity layouts**,
 
 ![preview](docs/preview3.gif)
 
----
-
-## 🧭 Typical workflow
-
-1. Open windows  
-2. Press **Ctrl + Shift + `** → tile / cycle layout  
-3. Drag window → drop near another → reorder  
-4. Resize window → layout updates in real-time  
-5. Press **Ctrl + Shift + `** → cycle layouts  
-6. Close or minimize → layout auto-adjusts  
-7. Press **Ctrl + Esc** → cycle focus  
-8. Switch desktop/activity → layout restored  
-
-Optional:
-- Double-tap **Ctrl + Shift + `** → maximize all  
-- Press **Ctrl + Shift + F1** → change main ratio  
-
----
-
 ## ✨ Features
+
+### 🧩 Modes
+
+KLeftHandTiler supports multiple global window management modes:
+
+- 🧱 **Normal Tiling Mode** (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>`</kbd>)  
+  Standard dynamic tiling behavior with all layout features enabled.
+
+- 🧩 **KWin Native Tiling Mode** (<kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>`</kbd>)  
+  Delegates tiling to KWin’s native tiling system.
+
+- 🪟 **Float All Mode** (<kbd>Shift</kbd> + 2x <kbd>CapsLock</kbd>)  
+  Toggles all windows into floating mode for free placement.
+
+- 🖥️ **Maximize All Mode** (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + 2x <kbd>`</kbd>)  
+  Maximizes all windows (single-window focus mode).
+
+### You can cycle through all modes using: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd>
+---
 
 ### 🧠 Layout Engine
 - Model-based tiling (rows + precise ratios)
 - Dynamic grid with intelligent first-row fitting
 - Constraint-aware (respects minimum window sizes)
 - Stable and predictable layouts
-- **Per-monitor independent layouts** (full multi-monitor support)
+- **Independent layouts per monitor, desktop, and activity**
 
 ### 🔄 Live Resize
 - Real-time layout updates during resize
 - Directional resize (keyboard + mouse)
 - Affects only adjacent windows
-- Precise edge detection with no jitter
 
 ### ⌨️ Keyboard Control
 - Directional **move** (reposition in order)
 - Directional **swap** with neighbor
-- Directional **resize**
-- Window **rotation** (Shift+Ctrl+Esc)
-- Consistent behavior across all layouts and monitors
+- Directional **resize** (affects the layout regardless of the active window when the action is unambiguous)
+- Window rotation (cycle window positions) (<kbd>Shift</kbd> + <kbd>Ctrl</kbd> + <kbd>Esc</kbd>)
 
 ### 👁 Live Preview & Drag-to-Reorder
 - Live preview while dragging windows
 - Position-based logic (swap vs insert)
 - Same behavior for keyboard and mouse
-- Hysteresis for stability (no flicker)
 
 ### 🧩 Layout Modes & Presets
 - Adaptive layouts based on window count
 - Left Master + Grid mode
-- Ratio presets (Ctrl+Shift+F2)
-- **KWin Native Tiling mode** (Ctrl+Shift+F1)
-- Cycle between: Normal Tiling → KWin Tiling → Float All → Maximize All
+- Top Master modes (1 / 2 / 3 top windows, available when applicable)
+- Ratio presets (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F2</kbd>)
+- KWin Native Tiling mode (<kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>`</kbd>)
+- Cycle between: Normal Tiling → KWin Tiling → Float All → Maximize All ()
 
 ### 💾 Layout Snapshots
 - Save and restore tiling or floating layouts (3 slots)
-- Quick cycle through saved layouts
+- Quick cycle through saved layouts (<kbd>Ctrl</kbd> + <kbd>Meta</kbd> + <kbd>`</kbd>)
 - Works with both tiled and floating mode
+- Windows are matched to the layout (by window identity/name) whenever possible
 
 ### 🪟 Floating Windows
-- Windows that don't fit are automatically floated
+- Windows that don't fit are handled automatically (float / move to another or new desktop)
 - Manual toggle floating for any window
 - Auto-rejoin when space becomes available
 - Float All mode with quick restore
@@ -112,20 +126,18 @@ Optional:
   - Window close
   - Minimize / restore
   - Desktop / activity change
-- Three modes: Off → Tiled only → Always (Ctrl+Shift+F3)
+- Three modes: Off → Tiled only (when no window is maximized) → Always (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F3</kbd>)
 
 ### 📐 Ratios & Visual Tuning
-- Configurable main window ratio
+- Configurable main window ratio (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F2</kbd>)
 - Adjustable gaps and screen margins
-- Border mode control (tiled/floating/all)
+- Border mode control (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F4</kbd>) 
 
-### 🖥 Multi-Monitor Support
-- Completely independent tiling per monitor
-- Correct window detection across screens
-- Proper usable area calculation per monitor
+### 🖥 Multi-Monitor, Desktop & Activity Support
+- Completely independent tiling per monitor, desktop and activity
 - Independent state (order, ratios, floating) for each screen
 
-### 🛡️ Ignore System (very accurate)
+### 🛡️ Ignore System
 - Two separate ignore lists (tiling & cycling)
 - Matches caption, resourceClass, resourceName
 - Automatic filtering of dialogs, popups, portals, launchers
@@ -134,7 +146,6 @@ Optional:
 ### 🔔 OSD Notifications
 - Current layout name and ratio
 - Mode changes and warnings
-- Throttled to avoid spam
 
 ### ⚡ Performance & Stability
 - Aggressive caching (geometry, visible windows, screen areas)
@@ -146,66 +157,67 @@ Optional:
 
 ## ⌨ Default shortcuts
 
-## Keyboard Shortcuts
-
 ### Core Tiling & Layout
-
-| Shortcut                  | Action                                      |
-|--------------------------|---------------------------------------------|
-| `Ctrl + Shift + ``               | Smart Tile / Cycle layouts                  |
-| `Ctrl + Shift + F1`      | Cycle Tile Modes (Tiling → KWin Tiling → Float All → Maximize All) |
-| `Ctrl + Shift + F2`      | Cycle main ratio presets                    |
-| `Ctrl + Shift + F3`      | Cycle auto-retile mode (Off / Tiled only / Always) |
-| `Ctrl + Shift + F4`      | Toggle border mode                          |
-| `Shift + Ctrl + Esc`     | Rotate windows (keep focus)       |
-| `Ctrl + Esc`             | Cycle to next visible window                |
-
-### Window Movement & Resizing
-
-| Shortcut                    | Action                            |
-|----------------------------|-----------------------------------|
-| `Meta + Ctrl + Alt + ←→↑↓` | Swap window with neighbor         |
-| `Meta + Alt + Shift + ←→↑↓`| Move window in direction          |
-| `Ctrl + Shift + ←→↑↓`      | Resize                            |
-| `Meta + Alt + X`           | Grow active window                |
-| `Meta + Alt + Z`           | Shrink active window              |
-
-### Floating & Snapshots
-
-| Shortcut                  | Action                                      |
-|--------------------------|---------------------------------------------|
-| `CapsLock` (double tap)  | Toggle floating for active window           |
-| `Shift + CapsLock` (double tap) | Toggle Float All mode                   |
-| `Meta + Ctrl + Space`    | Tile all currently floating windows         |
-| `Ctrl + Shift + F5/F6/F7`| Save current layout to slot 1/2/3           |
-| `Ctrl + Meta + ``        | Cycle through saved layouts                 |
-| `Ctrl + Shift + Alt + F5/F6/F7` | Clear saved layout slot              |
-
-### Maximize & Minimize
-
-| Shortcut             | Action                                      |
-|---------------------|---------------------------------------------|
-| `Ctrl + ``          | Toggle maximize / minimize (double tap = minimize) |
-| `Ctrl + CapsLock` (double) | Toggle fullscreen                    |
-| `Ctrl + Shift 1`          | Restore last minimized window               |
-
-### KWin Integration
-
-| Shortcut         | Action                          |
-|------------------|---------------------------------|
-| `Ctrl + Alt + `` | Apply KWin native tiling mode   |
-
-### ⚠️ Plasma default shortcuts (no conflicts)
-
-KLeftHandTiler shortcuts are designed to **avoid conflicts with KDE Plasma defaults**.
-
-The following system shortcuts remain available:
 
 | Shortcut | Action |
 |----------|--------|
-| Meta+Ctrl+Arrows | Switch desktop |
-| Meta+Ctrl+Shift+Arrows | Move window to desktop |
-| Meta+Alt+Arrows | Focus window |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>`</kbd> | Smart Tile / Cycle layouts |
+| <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>`</kbd> | Apply KWin native tiling mode |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd> | Cycle Tile Modes (Tiling → KWin Tiling → Float All → Maximize All) |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F2</kbd> | Cycle main ratio presets |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F3</kbd> | Cycle auto-retile mode (Off / Tiled only / Always) |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F4</kbd> | Toggle border mode |
+| <kbd>Shift</kbd> + <kbd>Ctrl</kbd> + <kbd>Esc</kbd> | Rotate windows (keep focus) |
+| <kbd>Ctrl</kbd> + <kbd>Esc</kbd> | Cycle to next visible window |
+
+### Window Movement & Resizing
+
+| Shortcut | Action |
+|----------|--------|
+| <kbd>Meta</kbd> + <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> | Swap window with neighbor |
+| <kbd>Meta</kbd> + <kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> | Move window in direction |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> | Resize |
+| <kbd>Meta</kbd> + <kbd>Alt</kbd> + <kbd>X</kbd> | Grow active window |
+| <kbd>Meta</kbd> + <kbd>Alt</kbd> + <kbd>Z</kbd> | Shrink active window |
+
+### Floating
+
+| Shortcut | Action |
+|----------|--------|
+| 2x <kbd>CapsLock</kbd> | Toggle floating for active window |
+| <kbd>Shift</kbd> + 2x <kbd>CapsLock</kbd> | Toggle Float All mode |
+| <kbd>Meta</kbd> + <kbd>Ctrl</kbd> + <kbd>Space</kbd> | Tile all currently floating windows |
+
+### Snapshots
+
+| Shortcut | Action |
+|----------|--------|
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F5</kbd>/<kbd>F6</kbd>/<kbd>F7</kbd> | Save current layout to slot 1/2/3 |
+| <kbd>Ctrl</kbd> + <kbd>Meta</kbd> + <kbd>`</kbd> | Cycle through saved layouts |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>Alt</kbd> + <kbd>F5</kbd>/<kbd>F6</kbd>/<kbd>F7</kbd> | Clear saved layout slot |
+
+### Maximize & Minimize
+
+| Shortcut | Action |
+|----------|--------|
+| <kbd>Ctrl</kbd> + <kbd>`</kbd> | Toggle maximize / minimize (double tap = minimize) |
+| <kbd>Ctrl</kbd> + 2x <kbd>CapsLock</kbd>  | Toggle fullscreen |
+| <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>1</kbd> | Restore last minimized window |
+
+
+### ⚠️ Plasma default shortcuts (no conflicts)
+
+KLeftHandTiler shortcuts **do not override KDE Plasma defaults** and are meant to be used together.
+
+Useful KDE Plasma shortcuts when using the script:
+
+| Shortcut | Action |
+|----------|--------|
+| <kbd>Meta</kbd> + <kbd>Ctrl</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> | Switch desktop |
+| <kbd>Meta</kbd> + <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> | Move window to desktop |
+| <kbd>Meta</kbd> + <kbd>Alt</kbd> + <kbd>←</kbd><kbd>→</kbd><kbd>↑</kbd><kbd>↓</kbd> | Focus window |
+| <kbd>Meta</kbd> + <kbd>A</kbd> | Switch activities |
+| <kbd>Meta</kbd> + <kbd>T</kbd> | Adjust layout (window count, sizes, and arrangement) using KWin tiling |
 
 ---
 
@@ -302,8 +314,18 @@ Additional options:
 
 ## 🗑 Uninstall
 
-    ./KLeftHandTiler.sh uninstall
+### Manually remove from KWin
+1. Open **System Settings**
+2. Go to **Window Management → KWin Scripts**
+3. Find **KLeftHandTiler**
+4. Disable or remove it
 
+or
+
+### Uninstall using the script
+```bash
+./KLeftHandTiler.sh uninstall
+```
 ---
 
 ## 🛠 Management

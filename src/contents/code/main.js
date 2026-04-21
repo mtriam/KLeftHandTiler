@@ -79,6 +79,7 @@ const AUTO_LAYOUT_ON_WINDOW_CLOSE = readConfig("autoLayoutOnWindowClose", true);
 const AUTO_LAYOUT_ON_WINDOW_MINIMIZE = readConfig("autoLayoutOnWindowMinimize", true);
 const AUTO_LAYOUT_ON_WINDOW_RESTORE = readConfig("autoLayoutOnWindowRestore", true);
 const AUTO_RETILE_MODE = readConfig("autoRetileMode", 1); // 0=off, 1=tiled only, 2=always
+const SNAPSHOT_SLOTS_TEXT = [readConfig("SLOT_1", ""),readConfig("SLOT_2", ""),readConfig("SLOT_3", "")];
 //const TILE_ON_START = readConfig("tileOnStart", false);
 const DEFAULT_PRESET_INDEX = readConfig("defaultPresetIndex", 0);
 const DEFAULT_DESKTOP_MODE = Math.max(0, Math.min(3, readConfig("defaultDesktopMode", 0))); // 0=tiled, 1=KWin, 2=float all, 3=max all
@@ -188,6 +189,58 @@ let _screenContextOverride = null;
 
 const minimizedStacks = {};   
 const states = {};
+
+function parseSnapshotConfigEntry(rawText, fallbackSlot) {
+    if (!rawText || typeof rawText !== "string") return null;
+    const trimmed = rawText.trim();
+    if (!trimmed) return null;
+
+    let slot = fallbackSlot;
+    let jsonText = trimmed;
+    const prefixed = trimmed.match(/^SLOT_(\d+)\s*[:=\-]?\s*(\{[\s\S]*)$/);
+    if (prefixed) {
+        slot = Number(prefixed[1]) - 1;
+        jsonText = prefixed[2];
+    }
+
+    const parsed = JSON.parse(jsonText);
+
+    let snapshot = parsed;
+    if (parsed && typeof parsed === "object" && parsed.snapshot) {
+        snapshot = parsed.snapshot;
+        if (Number.isInteger(parsed.slot)) {
+            slot = parsed.slot;
+        }
+    }
+
+    if (!snapshot || typeof snapshot !== "object") return null;
+    if (snapshot.type !== "floating" && snapshot.type !== "tiling") return null;
+    if (snapshot.type === "floating" && !Array.isArray(snapshot.data)) return null;
+    if (snapshot.type === "tiling" && !snapshot.model) return null;
+
+    if (!Number.isInteger(slot)) slot = fallbackSlot;
+    const maxSlot = floatingLayouts.length - 1;
+    slot = Math.max(0, Math.min(maxSlot, slot));
+
+    return { slot: slot, snapshot: snapshot };
+}
+
+function loadSnapshotSlotsFromConfig() {
+    for (let i = 0; i < SNAPSHOT_SLOTS_TEXT.length; i++) {
+        try {
+            const loaded = parseSnapshotConfigEntry(SNAPSHOT_SLOTS_TEXT[i], i);
+            if (!loaded) continue;
+
+            floatingLayouts[loaded.slot] = loaded.snapshot;
+            currentLayoutIndex = loaded.slot;
+            print("[SNAPSHOT_CONFIG_LOAD] SLOT_" + (i + 1) + " -> slot " + (loaded.slot + 1));
+        } catch (e) {
+            print("[SNAPSHOT_CONFIG_LOAD] SLOT_" + (i + 1) + " parse failed:", e);
+        }
+    }
+}
+
+loadSnapshotSlotsFromConfig();
 
 
 
@@ -1372,6 +1425,7 @@ function cycleFloatingLayouts() {
 function clearFloatingLayout(slot) {
     floatingLayouts[slot] = null;
     if (currentLayoutIndex === slot) currentLayoutIndex = -1;
+    print("SLOT_" + (slot + 1) + "={}");
     showOSDSafe(`Cleared slot ${slot + 1}`, "edit-clear");
 }
 
@@ -1430,6 +1484,17 @@ function saveFloatingLayoutToSlot(slot) {
 
     floatingLayouts[slot] = snapshot;
     currentLayoutIndex = slot;
+
+    try {
+        const snapshotText = JSON.stringify({
+            slot: slot,
+            slotHuman: slot + 1,
+            snapshot: snapshot
+        });
+        print("SLOT_" + (slot + 1) + "=" + snapshotText);
+    } catch (e) {
+        print("SLOT_" + (slot + 1) + " serialize failed:", e);
+    }
 }
 
 // ==================== RESTORE ================================================================================
@@ -3310,6 +3375,8 @@ function tryReclaimAutoFloatingWindows() {
 
     let { ordered } = getTiledOrder();
     if (!ordered) ordered = [];
+    let slotsLeft = MAX_WINDOWS - ordered.length;
+    if (slotsLeft <= 0) return false;
 
     const usable = getUsableArea();
     let changed = false;
@@ -3357,6 +3424,7 @@ function tryReclaimAutoFloatingWindows() {
             lastFreedSlot = null;   // 🔥 slot consumed
             changed = true;
             inserted = true;
+            slotsLeft--;
 
             break;
         }
@@ -3364,6 +3432,8 @@ function tryReclaimAutoFloatingWindows() {
         if (!inserted && DEBUG) {
             print("Could not reclaim:", w.caption || w.resourceClass);
         }
+
+        if (slotsLeft <= 0) break;
     }
 
     if (changed) {
