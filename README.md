@@ -74,7 +74,8 @@ KLeftHandTiler supports multiple global window management modes:
 - 🖥️ **Maximize All Mode** (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + 2x <kbd>`</kbd>)  
   Maximizes all windows (single-window focus mode).
 
-### You can cycle through all modes using: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd>
+You can cycle through all modes using: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd>
+
 ---
 
 ### 🧠 Layout Engine
