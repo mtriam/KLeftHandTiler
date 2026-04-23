@@ -6,6 +6,13 @@ SCRIPT_DIR="$HOME/.local/share/kwin/scripts/$SCRIPT_NAME"
 CONTENTS_DIR="$SCRIPT_DIR/contents"
 SCRIPT_SOURCE="src"
 
+BIN_DIR="$HOME/.local/bin"
+KDE_SHUTDOWN_DIR="$HOME/.config/plasma-workspace/shutdown"
+
+REPO_SCRIPT="./kleft-save.sh"
+SAVE_SCRIPT="$BIN_DIR/kleft-save.sh"
+SYMLINK="$KDE_SHUTDOWN_DIR/kleft-save.sh"
+
 help() {
     echo "Usage: $0 [status|install|remove|enable|disable|unload|package|help]"
     exit 0
@@ -64,6 +71,8 @@ case "$1" in
         qdbus6 org.kde.KWin /Scripting unloadScript "$SCRIPT_NAME"
         qdbus6 org.kde.kglobalaccel /component/kwin org.kde.kglobalaccel.Component.cleanUp
         qdbus6 org.kde.KWin /KWin reconfigure
+        rm -f "$SYMLINK"
+        rm -f "$SAVE_SCRIPT"
         exit 0
         ;;
     unload)
@@ -139,6 +148,26 @@ cp "$SCRIPT_SOURCE/metadata.json"  "$SCRIPT_DIR/metadata.json"
 echo "Refreshing KDE and KWin cache..."
 kbuildsycoca6 --noincremental || true
 qdbus6 org.kde.KWin /KWin reconfigure || true
+
+#persistent save
+
+
+
+echo "💾 Installing Persistent Snapshots (KLeftHandTiler)..."
+
+echo "➡️ Creating directories..."
+mkdir -p "$BIN_DIR"
+mkdir -p "$KDE_SHUTDOWN_DIR"
+
+echo "➡️ Copying save script from repo..."
+cp "$REPO_SCRIPT" "$SAVE_SCRIPT"
+
+chmod +x "$SAVE_SCRIPT"
+
+echo "➡️ Creating shutdown symlink..."
+ln -sf "$SAVE_SCRIPT" "$SYMLINK"
+
+echo "✅ Persistent Snapshot Save installed"
 
 echo ""
 echo "KLeftHandTiler installation / update completed."

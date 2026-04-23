@@ -26,29 +26,6 @@ chmod +x kleft-save-install.sh
 ```
 - Fix auto-float reclaim exceeding max tiled windows after window removal.
 - README improvements.
----
-## 🚀 What's new in v2.3
-
-- 🖥️ **Full Multi-Monitor Support** — each monitor now has completely independent tiling state (layout, ratios, window order, floating windows, etc.)
-- 💾 **Snapshots / Saved Layouts** — save and restore tiling or floating layouts (<kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F5</kbd>, <kbd>F6</kbd>, <kbd>F7</kbd> + cycle with <kbd>Ctrl</kbd> + <kbd>Meta</kbd> + <kbd>`</kbd>)
-- 🧩 **KWin Native Tiling Mode** — new mode accessible via <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd> (cycles: Normal Tiling → KWin Tiling → Float All → Maximize All) or via <kbd>Ctrl</kbd> + <kbd>Alt</kbd> + <kbd>`</kbd>
-- 🔄 **Window Rotation (All Modes)** — circular motion, keeps focus (<kbd>Shift</kbd> + <kbd>Ctrl</kbd> + <kbd>Esc</kbd>)
-- 🌊 **Improved Overflow Behavior** — multiple configurable overflow modes (float, move to other workspace, create new)
-- ⌨️ **Keyboard Shortcuts**:
-  - <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F1</kbd> — Cycle tile modes (Normal / KWin / Float / Maximize)
-  - <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F2</kbd> — Cycle main ratio presets
-  - <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F3</kbd> — Cycle auto-retile mode
-- 🧱 **Better First Row Handling** — removed problematic Auto Grid mode that caused duplication; more predictable and stable layouts
-- 🪟 **Dialogs & Transient Windows** — significantly improved ignoring of dialogs, tooltips, and portal windows
-
-### 🛠️ Fixes
-
-- 🖥️ **Major Multi-Monitor Fix** — tiling now works correctly and independently on every screen
-- 🔀 **Fixed window leakage** between monitors
-- 🧠 **Fixed layout state sharing** between screens
-- 🪟 **Improved handling of dialogs and popups** (much fewer unwanted tiled dialogs)
-- ⚡ **Better stability** when adding/removing windows on secondary monitors
-- 🚀 **Various performance and cache improvements**
 
 ---
 
@@ -302,6 +279,13 @@ Additional options:
 3. Install from file  
 4. Enable  
 
+#### 💾 Persistent Snapshots (optional)
+
+1. Download the file `kleft-save-install.sh` from the KLeftHandTiler repository, make the file executable and run
+   ```
+   wget https://raw.githubusercontent.com/mtriam/KLeftHandTiler/main/kleft-save-install.sh && 
+   chmod +x kleft-save-install.sh && ./kleft-save-install.sh
+   ```
 ---
 
 ### Manual
@@ -310,7 +294,6 @@ Additional options:
     cd KLeftHandTiler
     chmod +x KLeftHandTiler.sh
     ./KLeftHandTiler.sh install
-
 ---
 
 ## 🗑 Uninstall
@@ -320,6 +303,7 @@ Additional options:
 2. Go to **Window Management → KWin Scripts**
 3. Find **KLeftHandTiler**
 4. Disable or remove it
+5. Remove kleft-save.sh from: **System Settings → Startup and Shutdown → Desktop Session → Run Command Before Logout**
 
 or
 
@@ -349,8 +333,17 @@ or
         ui/config.ui
 
 Installed to:
-
     ~/.local/share/kwin/scripts/KLeftHandTiler
+
+
+    kleft-save.sh
+
+Installed to:
+    ~/.local/bin/kleft-save.sh
+
+Shutdown hook (Plasma):
+    ~/.config/plasma-workspace/shutdown/kleft-save.sh  → symlink to: 
+    ~/.local/bin/kleft-save.sh
 
 ---
 
