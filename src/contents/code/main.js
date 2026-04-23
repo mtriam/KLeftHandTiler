@@ -29,7 +29,7 @@ registerShortcut("Resize Up", "---Resize Up", "Ctrl+Shift+Up", () => resizeActiv
 registerShortcut("Resize Down", "---Resize Down", "Ctrl+Shift+Down", () => resizeActiveWindowDirectional(0, -1));
 registerShortcut("CapsDoubleFloating", "---Double Caps → Toggle Floating", "CapsLock", handleDoubleTapCapsFloating);
 registerShortcut("ShiftCapsDoubleFloatAll","---Shift+Double Caps → Toggle Float All","Shift+CapsLock",handleDoubleTapShiftCapsFloatAll);
-//registerShortcut("ToggleFloatAll","---Toggle tiling / floating mode","Meta+Shift+F",toggleFloatAll);
+registerShortcut("ToggleFloatAll","---Toggle tiling / floating mode","Meta+Shift+F",toggleFloatAll);
 //registerShortcut("ToggleFloating", "---Toggle floating window", "Meta+Shift+Space", toggleFloatingActiveWindow);
 registerShortcut("TileAllFloating","---Tile all floating windows","Meta+Ctrl+Space",tileAllFloatingWindows);
 registerShortcut("SaveFloatingLayout1", "---Save layout slot 1", "Ctrl+Shift+F5", () => saveFloatingLayoutToSlot(0));
@@ -158,6 +158,7 @@ let autoFloating = new Set();
 let lastFreedSlot = null;
 let managedDesktops = new Set();
 let _cleanupDesktopsLock = false;
+let _forwardOverflowCreateBatch = null;
 
 
 let previewTimer = null;
@@ -319,10 +320,18 @@ function applyKWinTiling(options = {}) {
                     autoFloating.add(w);
                 }
 
-                moveWindowToOverflow(w);
+                moveWindowToOverflow(w, {
+                    source: "kwin_apply",
+                    preserveWorkspace: true,
+                    silent: true,
+                    deferRelayout: true
+                });
             });
 
-            windows = windows.slice(0, limit);
+            _visibleCache = null;
+            windows = getVisibleWindows()
+                .filter(w => w && !w.deleted && !w.minimized && !w.skipTaskbar)
+                .slice(0, limit);
         }
 
         // =========================================================
@@ -952,7 +961,6 @@ function createNewDesktop(callback) {
 function countWindowsOnDesktop(desktop) {
     if (!desktop) return 0;
 
-    const deskId = getDesktopIdSafe(desktop);
     const currentActivity = workspace.currentActivity;
     const screenGeo = getFullArea();
 
@@ -980,7 +988,7 @@ function countWindowsOnDesktop(desktop) {
             return false;
         }
 
-        if (!windowOnCurrentDesktop(w, deskId)) return false;
+        if (!windowOnDesktop(w, desktop)) return false;
 
         const geo = getCachedGeometry(w);
         const centerX = geo.x + geo.width / 2;
@@ -1079,11 +1087,15 @@ function cleanupEmptyDesktops() {
 }
 
 function moveWindowToOverflow(win, options) {
-    const mode = OVERFLOW_BEHAVIOR;
+    const mode = Number(OVERFLOW_BEHAVIOR);
     if (!win || win.deleted) return;
     const source = (options && options.source) ? options.source : "relayout";
+    const preserveWorkspace = !!(options && options.preserveWorkspace);
+    const silentOverflow = !!(options && options.silent);
+    const deferRelayout = !!(options && options.deferRelayout);
 
     function showOverflowOSD(type, desktop) {
+        if (silentOverflow) return;
         let msg = `Workspace full (${MAX_WINDOWS})`;
 
         let idx = null;
@@ -1184,23 +1196,27 @@ function moveWindowToOverflow(win, options) {
 
         w.desktops = [desktop];
 
-        workspace.currentDesktop = desktop;
-        workspace.activeWindow = w;
-        workspace.raiseWindow(w);
+        if (!preserveWorkspace) {
+            workspace.currentDesktop = desktop;
+            workspace.activeWindow = w;
+            workspace.raiseWindow(w);
+        }
 
         showOverflowOSD(osdType, desktop);
 
-        let t = new QTimer();
-        t.interval = 100;
+        if (!deferRelayout) {
+            let t = new QTimer();
+            t.interval = 100;
 
-        t.timeout.connect(() => {
-            t.stop();
-            _visibleCache = null;
-            clearLayoutModel();
-            scheduleRelayout(0);
-        });
+            t.timeout.connect(() => {
+                t.stop();
+                _visibleCache = null;
+                clearLayoutModel();
+                scheduleRelayout(0);
+            });
 
-        t.start();
+            t.start();
+        }
     }
 
     function minimizeOverflow(w) {
@@ -1218,9 +1234,11 @@ function moveWindowToOverflow(win, options) {
             showOverflowOSD("float");
         }
 
-        _visibleCache = null;
-        clearLayoutModel();
-        scheduleRelayout(0);
+        if (!deferRelayout) {
+            _visibleCache = null;
+            clearLayoutModel();
+            scheduleRelayout(0);
+        }
     }
 
     // // =========================================================
@@ -1266,16 +1284,59 @@ function moveWindowToOverflow(win, options) {
             return;
         }
 
-        if (DEBUG) print("MODE2 → no forward → create new");
+        if (DEBUG) print("MODE2 → no forward → create/use shared new desktop");
+
+        if (_forwardOverflowCreateBatch) {
+            _forwardOverflowCreateBatch.windows.push(win);
+            return;
+        }
+
+        _forwardOverflowCreateBatch = {
+            windows: [win],
+            preserveWorkspace: preserveWorkspace,
+            silentOverflow: silentOverflow,
+            deferRelayout: deferRelayout
+        };
 
         createNewDesktop((_) => {
-            if (!win || win.deleted) return;
+            const batch = _forwardOverflowCreateBatch;
+            _forwardOverflowCreateBatch = null;
+            if (!batch) return;
 
             const list = workspace.desktops || [];
-            const target = list[list.length - 1];
-            if (!target) return;
+            const createdTarget = list[list.length - 1];
+            if (!createdTarget) return;
 
-            moveAndFocus(win, target, "new");
+            for (let w of batch.windows) {
+                if (!w || w.deleted) continue;
+
+                removeFromLayout(w);
+                getFloatingSet().delete(w);
+                autoFloating.delete(w);
+                w.desktops = [createdTarget];
+
+                if (!batch.preserveWorkspace) {
+                    workspace.currentDesktop = createdTarget;
+                    workspace.activeWindow = w;
+                    workspace.raiseWindow(w);
+                }
+
+                if (!batch.silentOverflow) {
+                    showOverflowOSD("new", createdTarget);
+                }
+            }
+
+            if (!batch.deferRelayout) {
+                let t = new QTimer();
+                t.interval = 100;
+                t.timeout.connect(() => {
+                    t.stop();
+                    _visibleCache = null;
+                    clearLayoutModel();
+                    scheduleRelayout(0);
+                });
+                t.start();
+            }
         });
 
         return;
@@ -1925,39 +1986,46 @@ function getDesktopIdSafe(d) {
     return "1";
 }
 
-function windowOnCurrentDesktop(win, currentDeskId) {
+function windowOnDesktop(win, targetDesktopRef) {
     if (!win) return false;
 
-    // Window visible on all desktops should always pass.
     if (win.onAllDesktops) return true;
 
-    const currentDesktopObj = workspace.currentDesktop;
     const desktops = getWindowDesktopRefs(win);
-    const currentDeskAliases = getDesktopAliases(currentDesktopObj);
-    currentDeskAliases.add(currentDeskId);
+    const targetAliases = getDesktopAliases(targetDesktopRef);
+    const targetDesktopObj = (targetDesktopRef && typeof targetDesktopRef === "object")
+        ? targetDesktopRef
+        : null;
 
-    // Primary check: direct object identity and normalized desktop id.
     if (desktops.length > 0) {
         return desktops.some(d => {
             if (!d) return false;
-            if (d === currentDesktopObj) return true;
+            if (targetDesktopObj && d === targetDesktopObj) return true;
             const aliases = getDesktopAliases(d);
             for (let id of aliases) {
-                if (currentDeskAliases.has(id)) return true;
+                if (targetAliases.has(id)) return true;
             }
             return false;
         });
     }
 
-    // Wayland fallback: some windows expose a singular `desktop` reference.
     if (win.desktop) {
-        if (win.desktop === currentDesktopObj) return true;
+        if (targetDesktopObj && win.desktop === targetDesktopObj) return true;
         const aliases = getDesktopAliases(win.desktop);
         for (let id of aliases) {
-            if (currentDeskAliases.has(id)) return true;
+            if (targetAliases.has(id)) return true;
         }
         return false;
     }
+
+    return false;
+}
+
+function windowOnCurrentDesktop(win, currentDeskId) {
+    const currentDesktopObj = workspace.currentDesktop;
+    const targetRef = currentDesktopObj || currentDeskId;
+
+    if (windowOnDesktop(win, targetRef)) return true;
 
     // Conservative fallback: allow only the active window (newly opened/transient cases).
     // Broad fallback caused cross-desktop pollution and layout desync loops.
@@ -7514,26 +7582,111 @@ function scheduleRelayout(delay) {
     relayoutTimer.start();
 }
 
+function runContextActionForCurrentWorkspace(reason, options = {}) {
+    const delay = (typeof options.delay === "number") ? options.delay : 100;
+    const screenTarget = options.screen || getEffectiveScreenTarget();
+
+    return withScreenContext(screenTarget, () => {
+        const state = getCurrentState();
+        if (!state) return;
+
+        const autoMode = state.autoRetileMode ?? AUTO_RETILE_MODE;
+        const autoEnabled = autoMode !== 0;
+
+        if (state.maximizedAll) {
+            maximizeAll();
+            return;
+        }
+
+        if (state.kwinTilingActive) {
+            applyKWinTiling({
+                screen: screenTarget,
+                desktop: workspace.currentDesktop,
+                source: reason || "contextChanged"
+            });
+            return;
+        }
+
+        if (state.allFloating) {
+            return;
+        }
+
+        if (!autoEnabled) {
+            return;
+        }
+
+        if (canAutoRetile()) {
+            if (delay === 0) {
+                state._layoutDirty = true;
+            }
+            scheduleRelayout(delay);
+        }
+    });
+}
+
+function handleWindowContextChanged(client, reason, options = {}) {
+    if (!client || client.deleted) return;
+
+    const currentDeskId = getCurrentDesktopIdentifier();
+    if (!windowOnCurrentDesktop(client, currentDeskId)) return;
+
+    const currentActivity = workspace.currentActivity;
+    if (currentActivity && !client.onAllActivities) {
+        if (!client.activities || !client.activities.includes(currentActivity)) {
+            return;
+        }
+    }
+
+    const screenTarget = options.screen || getScreenForWindow(client);
+
+    runContextActionForCurrentWorkspace(reason, {
+        delay: (typeof options.delay === "number") ? options.delay : 100,
+        screen: screenTarget
+    });
+}
+
 // ──────────────────────────────────────────────────────────────
 // DESKTOP & ACTIVITY CHANGE HANDLERS
 // ──────────────────────────────────────────────────────────────
 function onDesktopChanged() {
-    if (AUTO_LAYOUT_ON_DESKTOP_CHANGE && canAutoRetile()) {
-        scheduleRelayout();
+    const state = getCurrentState();
+    if (state) {
+        if (state.kwinTilingActive) {
+            showOSDSafe("KWin tiling mode", "view-grid");
+        } else if (state.allFloating) {
+            showOSDSafe("Floating mode", "window");
+        } else if (state.maximizedAll) {
+            showOSDSafe("Maximize all", "window-maximize");
+        } else {
+            showOSDSafe("Tiling mode", "view-grid");
+        }
     }
+
+    if (!AUTO_LAYOUT_ON_DESKTOP_CHANGE) return;
+    runContextActionForCurrentWorkspace("desktopChanged", { delay: 100 });
 }
 
 function onActivityChanged() {
-    if (AUTO_LAYOUT_ON_ACTIVITY_CHANGE && canAutoRetile()) {
-        if (DEBUG) print("KLeftHandTiler: activity changed → scheduling retile");
-        cachedScreenId = null;
-        scheduleRelayout(120);
+    const state = getCurrentState();
+    if (state) {
+        if (state.kwinTilingActive) {
+            showOSDSafe("KWin tiling mode", "view-grid");
+        } else if (state.allFloating) {
+            showOSDSafe("Floating mode", "window");
+        } else if (state.maximizedAll) {
+            showOSDSafe("Maximize all", "window-maximize");
+        } else {
+            showOSDSafe("Tiling mode", "view-grid");
+        }
     }
+
+    if (!AUTO_LAYOUT_ON_ACTIVITY_CHANGE) return;
+
+    cachedScreenId = null;
+    runContextActionForCurrentWorkspace("activityChanged", { delay: 120 });
 }
 
-if (AUTO_LAYOUT_ON_DESKTOP_CHANGE) {
-    workspace.currentDesktopChanged.connect(onDesktopChanged);
-}
+workspace.currentDesktopChanged.connect(onDesktopChanged);
 
 if (workspace.currentActivityChanged) {
     workspace.currentActivityChanged.connect(onActivityChanged);
@@ -7543,35 +7696,70 @@ if (workspace.currentActivityChanged) {
 
 function attachDesktopChangeHandler(client) {
     if (!client) return;
-    if (typeof client.desktopsChanged !== 'function') return;
-    if (client._kwin_desktopChangeAttached) return;
+    if (typeof client.desktopsChanged === 'function' && !client._kwin_desktopChangeAttached) {
+        client.desktopsChanged.connect(() => {
 
-    client.desktopsChanged.connect(() => {
+            if (!client || client.deleted) return;
+            if (!client.desktops || client.desktops.length === 0) return;
 
-        if (!client || client.deleted) return;
-        if (client.desktops.length === 0) return;
+            const newDeskIds = client.desktops.map(d => getDesktopIdSafe(d));
 
-        const newDeskIds = client.desktops.map(d => getDesktopIdSafe(d));
+            for (let key in states) {
+                const [, deskIdPart] = key.split(':');
 
-        for (let key in states) {
-            const [, deskIdPart] = key.split(':');
+                if (newDeskIds.includes(deskIdPart)) continue;
 
-            if (newDeskIds.includes(deskIdPart)) continue;
-
-            const state = states[key];
-            if (state && state.lastTiledOrder) {
-                state.lastTiledOrder = state.lastTiledOrder.filter(w => w !== client);
+                const state = states[key];
+                if (state && state.lastTiledOrder) {
+                    state.lastTiledOrder = state.lastTiledOrder.filter(w => w !== client);
+                }
             }
-        }
 
-        const currentDeskId = getCurrentDesktopIdentifier();
+            handleWindowContextChanged(client, "clientDesktopChanged", { delay: 0 });
+        });
 
-        if (canAutoRetile() && newDeskIds.includes(currentDeskId)) {
-            scheduleRelayout();
-        }
-    });
+        client._kwin_desktopChangeAttached = true;
+    }
 
-    client._kwin_desktopChangeAttached = true;
+    if (typeof client.activitiesChanged === 'function' && !client._kwin_activityChangeAttached) {
+        client.activitiesChanged.connect(() => {
+            handleWindowContextChanged(client, "clientActivityChanged", { delay: 120 });
+        });
+        client._kwin_activityChangeAttached = true;
+    }
+
+    if (typeof client.frameGeometryChanged === 'function' && !client._kwin_screenChangeAttached) {
+        client._kwin_lastScreenId = getScreenIdForTarget(getScreenForWindow(client));
+        client.frameGeometryChanged.connect(() => {
+            if (!client || client.deleted) return;
+
+            const screenTarget = getScreenForWindow(client);
+            const newScreenId = getScreenIdForTarget(screenTarget);
+            const oldScreenId = client._kwin_lastScreenId;
+            client._kwin_lastScreenId = newScreenId;
+
+            if (oldScreenId === undefined || oldScreenId === newScreenId) return;
+
+            const screens = workspace.screens || [];
+            const oldScreenTarget =
+                (oldScreenId >= 0 && oldScreenId < screens.length)
+                    ? screens[oldScreenId]
+                    : null;
+
+            if (oldScreenTarget) {
+                runContextActionForCurrentWorkspace("clientScreenChangedSource", {
+                    delay: 0,
+                    screen: oldScreenTarget
+                });
+            }
+
+            handleWindowContextChanged(client, "clientScreenChanged", {
+                delay: 0,
+                screen: screenTarget
+            });
+        });
+        client._kwin_screenChangeAttached = true;
+    }
 }
 
 workspace.windowList().forEach(attachDesktopChangeHandler);

@@ -14,7 +14,20 @@ A tiling and workspace management script with
 **layout snapshots and restoration**, and a  
 **constraint-aware engine with live resize and predictable behavior**.
 
---
+
+## 🚀 Whats' new in v.2.5
+
+- Fixed a race condition when switching to KWin tiling (layout no longer requires a second trigger).
+- Improved overflow handling for excess windows (stable moves without cascading desktop creation).
+- Fixed wrong desktop targeting in forward only overflow and corrected per-desktop window counting.
+- Added mode-aware behavior (tiled / KWin / maximized / float) for window context-change reactions.
+- Fixed a bug where moving a window to a desktop in KWin mode could switch that desktop to floating.
+- Added OSD showing the active tiling mode on desktop or activity change.
+- Unified desktop/activity/monitor change handling through a shared context-change handler.
+- Fixed cross-monitor move retile race: target monitor now retiles immediately for each moved window
+  (no delayed tiling until last window).
+
+---
 ## 🚀 Whats' new in v.2.4
 - Persistent snapshots — saved layouts now **survive logout and reboot**.
 
