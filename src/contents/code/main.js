@@ -44,7 +44,7 @@ registerShortcut("KWinTileApply","Apply KWin Tiling","Ctrl+Alt+`",() => applyKWi
 // ──────────────────────────────────────────────────────────────
 // CONFIGURATION
 // ──────────────────────────────────────────────────────────────
-const DEBUG = false;  
+const DEBUG = true;  
 const LIVE_RESIZE_THROTTLE = 16;   // 50-80 is ideal
 const MAX_FIRST_ROW = 3;
 const RESIZE_STEP = 0.1;
@@ -72,15 +72,14 @@ const MINIMIZE_IGNORED_WINDOWS = readConfig("minimizeIgnoredWindows", true);
 const TILE_EVEN_IF_NEW_MAXIMIZED = readConfig("tileEvenIfNewMaximized", true);
 const AUTO_REMOVE_EMPTY_DESKTOPS = readConfig("autoRemoveEmptyDesktops", true);
 const MINIMIZE_SNAPSHOT_OVERFLOW = readConfig("minimizeSnapshotOverflow", true);
-const AUTO_LAYOUT_ON_DESKTOP_CHANGE = readConfig("autoLayoutOnDesktopChange", false);
-const AUTO_LAYOUT_ON_ACTIVITY_CHANGE = readConfig("autoLayoutOnActivityChange", false);
+const AUTO_LAYOUT_ON_DESKTOP_CHANGE = readConfig("autoLayoutOnDesktopChange", true);
+const AUTO_LAYOUT_ON_ACTIVITY_CHANGE = readConfig("autoLayoutOnActivityChange", true);
 const AUTO_LAYOUT_ON_NEW_WINDOW = readConfig("autoLayoutOnNewWindow", true);
 const AUTO_LAYOUT_ON_WINDOW_CLOSE = readConfig("autoLayoutOnWindowClose", true);
 const AUTO_LAYOUT_ON_WINDOW_MINIMIZE = readConfig("autoLayoutOnWindowMinimize", true);
 const AUTO_LAYOUT_ON_WINDOW_RESTORE = readConfig("autoLayoutOnWindowRestore", true);
 const AUTO_RETILE_MODE = readConfig("autoRetileMode", 1); // 0=off, 1=tiled only, 2=always
 const SNAPSHOT_SLOTS_TEXT = [readConfig("SLOT_1", ""),readConfig("SLOT_2", ""),readConfig("SLOT_3", "")];
-//const TILE_ON_START = readConfig("tileOnStart", false);
 const DEFAULT_PRESET_INDEX = readConfig("defaultPresetIndex", 0);
 const DEFAULT_DESKTOP_MODE = Math.max(0, Math.min(3, readConfig("defaultDesktopMode", 0))); // 0=tiled, 1=KWin, 2=float all, 3=max all
 const DOUBLE_TAP_THRESHOLD = readConfig("doubleTapThresholdMs", 300);
@@ -215,9 +214,12 @@ function parseSnapshotConfigEntry(rawText, fallbackSlot) {
     }
 
     if (!snapshot || typeof snapshot !== "object") return null;
-    if (snapshot.type !== "floating" && snapshot.type !== "tiling") return null;
-    if (snapshot.type === "floating" && !Array.isArray(snapshot.data)) return null;
-    if (snapshot.type === "tiling" && !snapshot.model) return null;
+    const snapType = snapshot.type;
+    const snapMode = snapshot.mode || snapType;
+    if (snapType !== "floating" && snapType !== "tiling" && snapType !== "kwin") return null;
+    if (snapMode !== "floating" && snapMode !== "tiling" && snapMode !== "kwin") return null;
+    if (snapType === "floating" && !Array.isArray(snapshot.data)) return null;
+    if (snapType === "tiling" && !snapshot.model) return null;
 
     if (!Number.isInteger(slot)) slot = fallbackSlot;
     const maxSlot = floatingLayouts.length - 1;
@@ -976,17 +978,14 @@ function countWindowsOnDesktop(desktop) {
             w.popup ||
             w.dialog ||
             w.utilityWindow ||
+            isIgnoredSpecialWindow(w) ||
             w.deleted ||
             matchesIgnoreList(w, IGNORE_TILING)
         ) {
             return false;
         }
 
-        if (currentActivity &&
-            !w.onAllActivities &&
-            !w.activities.includes(currentActivity)) {
-            return false;
-        }
+        if (!windowOnCurrentActivity(w, currentActivity)) return false;
 
         if (!windowOnDesktop(w, desktop)) return false;
 
@@ -1494,16 +1493,20 @@ function clearFloatingLayout(slot) {
 
 function saveFloatingLayoutToSlot(slot) {
     const visible = getVisibleWindows();
-    if (!visible || visible.length === 0) {
+    const state = getCurrentState();
+    const isKWin = !!(state && state.kwinTilingActive);
+    const isTiling = state && !state.allFloating && !state.kwinTilingActive && getLayoutModel();
+
+    if (!isKWin && (!visible || visible.length === 0)) {
         showOSDSafe("No windows to save", "dialog-warning");
         return;
     }
 
-    const state = getCurrentState();
-    const isTiling = state && !state.allFloating && getLayoutModel();
-
     let snapshot;
-    if (isTiling) {
+    if (isKWin) {
+        snapshot = { type: "kwin", mode: "kwin" };
+        showOSDSafe(`Layout saved (KWin tiling) → slot ${slot + 1}`, "document-save");
+    } else if (isTiling) {
         const model = getLayoutModel();
         const savedModel = {
             leftMain: model.leftMain ? {
@@ -1530,7 +1533,7 @@ function saveFloatingLayoutToSlot(slot) {
                 windows: newRow
             });
         }
-        snapshot = { type: "tiling", model: savedModel };
+        snapshot = { type: "tiling", mode: "tiling", model: savedModel };
         showOSDSafe(`Layout saved (tiling) → slot ${slot + 1}`, "document-save");
     } else {
         const data = [];
@@ -1539,7 +1542,7 @@ function saveFloatingLayoutToSlot(slot) {
             const g = w.frameGeometry;
             data.push({ x: g.x, y: g.y, width: g.width, height: g.height });
         }
-        snapshot = { type: "floating", data: data };
+        snapshot = { type: "floating", mode: "floating", data: data };
         showOSDSafe(`Layout saved (floating) → slot ${slot + 1}`, "document-save");
     }
 
@@ -1609,6 +1612,19 @@ function restoreFloatingLayoutFromSlot(slot) {
     const snapshot = floatingLayouts[slot];
     if (!snapshot) {
         showOSDSafe(`Slot ${slot + 1} empty`, "dialog-warning");
+        return;
+    }
+
+    const snapshotMode = snapshot.mode || snapshot.type;
+
+    if (snapshotMode === "kwin" || snapshot.type === "kwin") {
+        const state = getCurrentState();
+        state.maximizedAll = false;
+        state.allFloating = false;
+        state.kwinTilingActive = false;
+        applyKWinTiling({ source: "snapshotRestore" });
+        showOSDSafe(`KWin tiling restored → slot ${slot + 1}`, "view-grid");
+        print("✅ KWIN RESTORE COMPLETED");
         return;
     }
 
@@ -2027,6 +2043,17 @@ function windowOnCurrentDesktop(win, currentDeskId) {
 
     if (windowOnDesktop(win, targetRef)) return true;
 
+    const desktopRefs = getWindowDesktopRefs(win);
+    // Wayland/KWin can expose windows without explicit desktop assignment.
+    // Treat missing assignment as visible in current desktop context.
+    if (desktopRefs.length === 0 && !win.desktop && !win.onAllDesktops) {
+        if (DEBUG) {
+            const label = win.caption || win.resourceClass || win.resourceName || "?";
+            print(`[desktop-fallback] allowing "${label}" (no desktop assignment exposed)`);
+        }
+        return true;
+    }
+
     // Conservative fallback: allow only the active window (newly opened/transient cases).
     // Broad fallback caused cross-desktop pollution and layout desync loops.
     if (workspace.activeWindow && win === workspace.activeWindow) {
@@ -2038,6 +2065,33 @@ function windowOnCurrentDesktop(win, currentDeskId) {
         print(`[desktop-fallback] rejecting "${label}" (no desktop assignment exposed)`);
     }
     return false;
+}
+
+function windowOnCurrentActivity(win, currentActivity) {
+    if (!win) return false;
+    if (!currentActivity) return true;
+    if (win.onAllActivities) return true;
+
+    const activityRefs = getWindowActivityRefs(win);
+
+    // In KWin, empty activity assignment can mean "all activities".
+    if (activityRefs.length === 0) return true;
+
+    for (let ref of activityRefs) {
+        if (!ref) continue;
+        const id = String(ref).toLowerCase();
+        if (id === String(currentActivity).toLowerCase()) return true;
+        if (id === "00000000-0000-0000-0000-000000000000") return true;
+    }
+
+    return false;
+}
+
+function isStickyWindow(win) {
+    if (!win) return false;
+    if (win.onAllDesktops || win.onAllActivities) return true;
+    const activityRefs = getWindowActivityRefs(win);
+    return activityRefs.some(ref => String(ref).toLowerCase() === "00000000-0000-0000-0000-000000000000");
 }
 
 function getWindowDesktopRefs(win) {
@@ -2058,6 +2112,32 @@ function getWindowDesktopRefs(win) {
     if (typeof d[Symbol.iterator] === "function") {
         const out = [];
         for (let item of d) {
+            if (item) out.push(item);
+        }
+        return out;
+    }
+
+    return [];
+}
+
+function getWindowActivityRefs(win) {
+    if (!win || !win.activities) return [];
+
+    const a = win.activities;
+
+    if (Array.isArray(a)) return a.filter(x => x);
+
+    if (typeof a.length === "number") {
+        const out = [];
+        for (let i = 0; i < a.length; i++) {
+            if (a[i]) out.push(a[i]);
+        }
+        if (out.length > 0) return out;
+    }
+
+    if (typeof a[Symbol.iterator] === "function") {
+        const out = [];
+        for (let item of a) {
             if (item) out.push(item);
         }
         return out;
@@ -2119,7 +2199,7 @@ function debugWindowVisibility(win, tag = "visible-debug") {
         utilityWindow: !!win.utilityWindow,
         deleted: !!win.deleted,
         ignoreMatch: matchesIgnoreList(win, IGNORE_TILING),
-        activityOk: !(currentActivity && !win.onAllActivities && !win.activities.includes(currentActivity)),
+        activityOk: windowOnCurrentActivity(win, currentActivity),
         desktopOk: windowOnCurrentDesktop(win, currentDeskId),
         screenOk:
             centerX >= screenGeo.x &&
@@ -2324,6 +2404,7 @@ function getVisibleWindows() {
             w.popup ||
             w.dialog ||
             w.utilityWindow ||
+            isIgnoredSpecialWindow(w) ||
             w.deleted ||
             matchesIgnoreList(w, IGNORE_TILING)
         ) {
@@ -2331,11 +2412,9 @@ function getVisibleWindows() {
         }
 
         // ACTIVITY
-        if (currentActivity &&
-            !w.onAllActivities &&
-            !w.activities.includes(currentActivity)) {
+        if (!windowOnCurrentActivity(w, currentActivity)) {
             return false;
-            }
+        }
 
             // DESKTOP
             if (!windowOnCurrentDesktop(w, currentDeskId)) return false;
@@ -2376,15 +2455,14 @@ function getCyclingWindows() {
             w.popup ||
             w.dialog ||
             w.utilityWindow ||
+            isIgnoredSpecialWindow(w) ||
             w.deleted ||
             matchesIgnoreList(w, IGNORE_CYCLING)
         ) {
             return false;
         }
 
-        if (currentActivity &&
-            !w.onAllActivities &&
-            !w.activities.includes(currentActivity)) {
+        if (!windowOnCurrentActivity(w, currentActivity)) {
             return false;
         }
 
@@ -3537,6 +3615,7 @@ function reLayout() {
     cleanupResizeEdges();
 
     let { ordered, visible: tiledVisible } = getTiledOrder();
+    if (DEBUG) print(`[reLayout] key=${getStateKey()} ordered=${ordered ? ordered.length : -1} visible=${tiledVisible ? tiledVisible.length : -1} dirty=${!!state._layoutDirty}`);
     if (!ordered || ordered.length === 0) return;
     if (tiledVisible.every(w => w.minimized)) return;
 
@@ -3573,6 +3652,7 @@ function reLayout() {
 
     const ws = getWS();
     const hasForcePending = !!(ws.layoutMeta && ws.layoutMeta.force);
+    const hasRetilePending = !!(ws.layoutMeta && ws.layoutMeta.retile);
     const signature =
         getCurrentActivityId() + "|" +
         getCurrentDesktopIdentifier() + "|" +
@@ -3581,9 +3661,12 @@ function reLayout() {
         usable.x + "," + usable.y + "," + usable.width + "," + usable.height + "|" +
         !!state.kwinTilingActive + "|" + !!state.allFloating + "|" + !!state.maximizedAll;
 
-    if (!state._layoutDirty && !hasForcePending && state._lastRelayoutSignature === signature) {
-        if (DEBUG) print("reLayout: skipped (signature unchanged)");
+    if (!state._layoutDirty && !hasForcePending && !hasRetilePending && state._lastRelayoutSignature === signature) {
+        if (DEBUG) print(`[reLayout] skipped signature unchanged key=${getStateKey()}`);
         return;
+    }
+    if (ws.layoutMeta) {
+        ws.layoutMeta.retile = false;
     }
 
     let model = getLayoutModel();
@@ -7566,11 +7649,18 @@ function scheduleRelayout(delay) {
 
     if (delay === 0) {
         const now = Date.now();
-        const forcePending = !!getWS().layoutMeta.force;
-        if (!state._layoutDirty && !forcePending && (now - _lastRelayoutRunTs) < 80) {
+        const wsMeta = getWS().layoutMeta || {};
+        const forcePending = !!wsMeta.force;
+        const runPending = !!wsMeta.run;
+        const retilePending = !!wsMeta.retile;
+        if (DEBUG) {
+            print(`[scheduleRelayout] delay=0 dirty=${!!state._layoutDirty} force=${forcePending} run=${runPending} retile=${retilePending} dt=${now - _lastRelayoutRunTs}`);
+        }
+        if (!state._layoutDirty && !forcePending && !runPending && (now - _lastRelayoutRunTs) < 80) {
             if (DEBUG) print("scheduleRelayout: coalesced immediate call");
             return;
         }
+        wsMeta.run = false;
         relayoutTimer.stop();
         _lastRelayoutRunTs = now;
         reLayout();
@@ -7585,6 +7675,10 @@ function scheduleRelayout(delay) {
 function runContextActionForCurrentWorkspace(reason, options = {}) {
     const delay = (typeof options.delay === "number") ? options.delay : 100;
     const screenTarget = options.screen || getEffectiveScreenTarget();
+    const forceRetile = !!options.force;
+    const skipDirty = !!options.skipDirty;
+    const forceRun = !!options.forceRun;
+    const forceRetilePass = !!options.forceRetilePass;
 
     return withScreenContext(screenTarget, () => {
         const state = getCurrentState();
@@ -7592,6 +7686,9 @@ function runContextActionForCurrentWorkspace(reason, options = {}) {
 
         const autoMode = state.autoRetileMode ?? AUTO_RETILE_MODE;
         const autoEnabled = autoMode !== 0;
+        if (DEBUG) {
+            print(`[context] reason=${reason || "?"} delay=${delay} force=${forceRetile} forceRun=${forceRun} forceRetilePass=${forceRetilePass} skipDirty=${skipDirty} autoMode=${autoMode} canAuto=${canAutoRetile()} key=${getStateKey()}`);
+        }
 
         if (state.maximizedAll) {
             maximizeAll();
@@ -7615,11 +7712,19 @@ function runContextActionForCurrentWorkspace(reason, options = {}) {
             return;
         }
 
-        if (canAutoRetile()) {
-            if (delay === 0) {
+        if (canAutoRetile() || forceRetile) {
+            if (forceRun && delay === 0) {
+                getWS().layoutMeta.run = true;
+            }
+            if (forceRetilePass && delay === 0) {
+                getWS().layoutMeta.retile = true;
+            }
+            if (delay === 0 && !skipDirty) {
                 state._layoutDirty = true;
             }
             scheduleRelayout(delay);
+        } else if (DEBUG) {
+            print(`[context] skipped reason=${reason || "?"} (canAutoRetile=false and force=false)`);
         }
     });
 }
@@ -7631,11 +7736,7 @@ function handleWindowContextChanged(client, reason, options = {}) {
     if (!windowOnCurrentDesktop(client, currentDeskId)) return;
 
     const currentActivity = workspace.currentActivity;
-    if (currentActivity && !client.onAllActivities) {
-        if (!client.activities || !client.activities.includes(currentActivity)) {
-            return;
-        }
-    }
+    if (!windowOnCurrentActivity(client, currentActivity)) return;
 
     const screenTarget = options.screen || getScreenForWindow(client);
 
@@ -7663,7 +7764,13 @@ function onDesktopChanged() {
     }
 
     if (!AUTO_LAYOUT_ON_DESKTOP_CHANGE) return;
-    runContextActionForCurrentWorkspace("desktopChanged", { delay: 100 });
+    if (DEBUG) print(`[desktopChanged] key=${getStateKey()} trigger=${AUTO_LAYOUT_ON_DESKTOP_CHANGE}`);
+
+    // Two-pass retile helps with KWin state settling right after desktop switch,
+    // especially for sticky windows visible across multiple desktops.
+    _visibleCache = null;
+    runContextActionForCurrentWorkspace("desktopChangedImmediate", { delay: 0, force: true, forceRun: true, forceRetilePass: true, skipDirty: true });
+    runContextActionForCurrentWorkspace("desktopChangedSettled", { delay: 120, force: true, skipDirty: true });
 }
 
 function onActivityChanged() {
@@ -7681,9 +7788,12 @@ function onActivityChanged() {
     }
 
     if (!AUTO_LAYOUT_ON_ACTIVITY_CHANGE) return;
+    if (DEBUG) print(`[activityChanged] key=${getStateKey()} trigger=${AUTO_LAYOUT_ON_ACTIVITY_CHANGE}`);
 
     cachedScreenId = null;
-    runContextActionForCurrentWorkspace("activityChanged", { delay: 120 });
+    _visibleCache = null;
+    runContextActionForCurrentWorkspace("activityChangedImmediate", { delay: 0, force: true, forceRun: true, forceRetilePass: true, skipDirty: true });
+    runContextActionForCurrentWorkspace("activityChangedSettled", { delay: 120, force: true, skipDirty: true });
 }
 
 workspace.currentDesktopChanged.connect(onDesktopChanged);
@@ -7700,18 +7810,24 @@ function attachDesktopChangeHandler(client) {
         client.desktopsChanged.connect(() => {
 
             if (!client || client.deleted) return;
-            if (!client.desktops || client.desktops.length === 0) return;
+            const sticky = isStickyWindow(client);
+            const desktopRefs = getWindowDesktopRefs(client);
+            if (!sticky && desktopRefs.length === 0) return;
 
-            const newDeskIds = client.desktops.map(d => getDesktopIdSafe(d));
+            const newDeskIds = desktopRefs.map(d => getDesktopIdSafe(d)).filter(Boolean);
 
-            for (let key in states) {
-                const [, deskIdPart] = key.split(':');
+            // Sticky windows should not be treated as if they were "moved"
+            // between desktops; they are projected into each desktop context.
+            if (!sticky) {
+                for (let key in states) {
+                    const [, deskIdPart] = key.split(':');
 
-                if (newDeskIds.includes(deskIdPart)) continue;
+                    if (newDeskIds.includes(deskIdPart)) continue;
 
-                const state = states[key];
-                if (state && state.lastTiledOrder) {
-                    state.lastTiledOrder = state.lastTiledOrder.filter(w => w !== client);
+                    const state = states[key];
+                    if (state && state.lastTiledOrder) {
+                        state.lastTiledOrder = state.lastTiledOrder.filter(w => w !== client);
+                    }
                 }
             }
 
@@ -7723,7 +7839,30 @@ function attachDesktopChangeHandler(client) {
 
     if (typeof client.activitiesChanged === 'function' && !client._kwin_activityChangeAttached) {
         client.activitiesChanged.connect(() => {
-            handleWindowContextChanged(client, "clientActivityChanged", { delay: 120 });
+            if (!client || client.deleted) return;
+
+            const sticky = isStickyWindow(client);
+            const activityRefs = getWindowActivityRefs(client);
+
+            // Sticky windows are not migrated between activities; they are visible in each.
+            // Avoid treating this signal as a move event for them.
+            if (sticky) return;
+
+            if (!sticky && activityRefs.length > 0) {
+                const newActivityIds = new Set(activityRefs.filter(Boolean));
+
+                for (let key in states) {
+                    const [actIdPart] = key.split(':');
+                    if (newActivityIds.has(actIdPart)) continue;
+
+                    const state = states[key];
+                    if (state && state.lastTiledOrder) {
+                        state.lastTiledOrder = state.lastTiledOrder.filter(w => w !== client);
+                    }
+                }
+            }
+
+            handleWindowContextChanged(client, "clientActivityChanged", { delay: 0 });
         });
         client._kwin_activityChangeAttached = true;
     }
@@ -7801,6 +7940,16 @@ function isIgnoredSpecialWindow(client) {
     
     if (client.popup) 
         return true;
+
+    // Plasma OSD-like helper windows can be reported as normal/managed in some setups.
+    // Keep them out of tiling/cycling regardless of activity visibility.
+    const role = (client.windowRole || "").toLowerCase();
+    if (
+        rClass === "org.kde.plasmashell" &&
+        (role.includes("osd") || rName.includes("osd") || caption.toLowerCase().includes("osd"))
+    ) {
+        return true;
+    }
      
     return false;
 }
@@ -8266,14 +8415,13 @@ function handleWindowRemoved(client) {
     // RECLAIM AUTO-FLOATING
     // ─────────────────────────────────────────────
     const state = getCurrentState();
-    const currentDesktop = workspace.currentDesktop; 
+    const currentDeskId = getCurrentDesktopIdentifier();
     const floating = Array.from(getFloatingSet())
         .filter(w =>
             autoFloating.has(w) &&
             w &&
             !w.deleted &&
-            w.desktops &&
-            w.desktops.includes(currentDesktop)   
+            windowOnCurrentDesktop(w, currentDeskId)
         );
 
     if (floating.length > 0 && AUTO_LAYOUT_ON_WINDOW_CLOSE && canAutoRetile()) {

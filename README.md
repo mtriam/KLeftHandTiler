@@ -15,6 +15,22 @@ A tiling and workspace management script with
 **constraint-aware engine with live resize and predictable behavior**.
 
 
+## 🚀 Whats' new in v.2.6
+
+- Fixed handling of sticky windows (on all desktops / on all activities) so they are no longer ignored and are tiled correctly in the current context.
+- Improved context-switch relayout logic (desktop/activity): relayout now runs reliably after switch without being skipped by stale signature checks.
+- Preserved per-context layout behavior: switching desktop/activity no longer breaks remembered window proportions/layout state.
+- Fixed fallback visibility for windows without explicit desktop assignment (common on Wayland/KWin), preventing false rejections.
+- Hardened filtering of special/OSD windows so temporary overlays do not occupy tiling slots.
+- Changed defaults: auto-retile triggers are now enabled by default for on desktop change and on activity change.
+- Added alternative keybindings for **Toggle Float All mode**
+- Added snapshot mode persistence and restore: snapshots now store and restore active mode (tiling, floating, KWin tiling).
+- Added KWin tiling snapshot support (type: "kwin"), so restoring a slot can automatically re-enable KWin tiling mode.
+- Kept backward compatibility for existing snapshot slots by supporting both legacy type-based entries and new mode metadata.
+
+
+
+
 ## 🚀 Whats' new in v.2.5
 
 - Fixed a race condition when switching to KWin tiling (layout no longer requires a second trigger).
@@ -176,7 +192,7 @@ You can cycle through all modes using: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd
 | Shortcut | Action |
 |----------|--------|
 | 2x <kbd>CapsLock</kbd> | Toggle floating for active window |
-| <kbd>Shift</kbd> + 2x <kbd>CapsLock</kbd> | Toggle Float All mode |
+| <kbd>Shift</kbd> + 2x <kbd>CapsLock</kbd><br>or<br><kbd>Meta</kbd> + <kbd>Shift</kbd> + <kbd>f</kbd> | Toggle Float All mode |
 | <kbd>Meta</kbd> + <kbd>Ctrl</kbd> + <kbd>Space</kbd> | Tile all currently floating windows |
 
 ### Snapshots

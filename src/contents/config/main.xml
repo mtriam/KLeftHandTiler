@@ -28,7 +28,7 @@
         </entry>
         <entry name="autoLayoutOnDesktopChange" type="Bool">
             <label>Automatically retile after switching virtual desktop</label>
-            <default>false</default>
+            <default>true</default>
         </entry>
 
         <entry name="autoLayoutOnNewWindow" type="Bool">
@@ -122,7 +122,7 @@
 
         <entry name="autoLayoutOnActivityChange" type="Bool">
             <label>Automatically retile after switching activity</label>
-            <default>false</default>
+            <default>true</default>
         </entry>
 
         <entry name="SLOT_1" type="String">
