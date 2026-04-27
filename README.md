@@ -14,47 +14,27 @@ A tiling and workspace management script with
 **layout snapshots and restoration**, and a  
 **constraint-aware engine with live resize and predictable behavior**.
 
+## 🚀 Whats' new in v.2.7
 
-## 🚀 Whats' new in v.2.6
+- Fixed KWin tiling order persistence after swap and desktop/activity switch: swapped window order is now preserved per context (activity + desktop + screen).
+- Fixed KWin swap logic to use tile reassignment instead of floating-geometry fallback, preventing mode-like behavior regressions.
+- Fixed relayout trigger flow on desktop/activity change so relayout passes are no longer skipped incorrectly by signature/coalescing logic.
+- Fixed KWin maximize/unmaximize restore behavior:
+    - unmaximize via script shortcut now reliably reapplies KWin tiling,
+    - unmaximize via titlebar button now uses geometry-based restore detection and reapplies KWin tiling,
+    - fullscreen restore remains supported.
+- Fixed focus jumps after KWin tiling apply by restoring previously active window focus when possible.
+- Fixed minimize/restore behavior in KWin mode: minimizing via titlebar button no longer switches mode to floating; KWin tiling is now reapplied instead of running generic relayout.
+- Fixed KWin-to-normal-tiling transition via `Ctrl+Shift+``: first press now cleanly switches to normal tiling without unintended layout-mode cycling in OSD (no extra “Layout reset” step).
+- Changed floating activation behavior: toggleFloatAll() now defaults to enable-only when called without an explicit argument (no implicit toggle).
+- Updated floating shortcuts to match enable-only behavior:
+  - Meta+Shift+F now always enables floating mode.
+  - Shift+CapsLock double-tap also enables floating mode.
+- Improved floating OSD behavior: invoking floating enable now always shows Floating mode OSD, even if floating mode is already active.
+- Fixed Brave --ozone=x11 KWin jitter/resize-loop scenarios:
+  improved max-restore fallback stability and transition handling,
+  added short post-applyKWinTiling suppression window so internal KWin-apply geometry changes do not retrigger max-restore reapply loops.
 
-- Fixed handling of sticky windows (on all desktops / on all activities) so they are no longer ignored and are tiled correctly in the current context.
-- Improved context-switch relayout logic (desktop/activity): relayout now runs reliably after switch without being skipped by stale signature checks.
-- Preserved per-context layout behavior: switching desktop/activity no longer breaks remembered window proportions/layout state.
-- Fixed fallback visibility for windows without explicit desktop assignment (common on Wayland/KWin), preventing false rejections.
-- Hardened filtering of special/OSD windows so temporary overlays do not occupy tiling slots.
-- Changed defaults: auto-retile triggers are now enabled by default for on desktop change and on activity change.
-- Added alternative keybindings for **Toggle Float All mode**
-- Added snapshot mode persistence and restore: snapshots now store and restore active mode (tiling, floating, KWin tiling).
-- Added KWin tiling snapshot support (type: "kwin"), so restoring a slot can automatically re-enable KWin tiling mode.
-- Kept backward compatibility for existing snapshot slots by supporting both legacy type-based entries and new mode metadata.
-
-
-
-
-## 🚀 Whats' new in v.2.5
-
-- Fixed a race condition when switching to KWin tiling (layout no longer requires a second trigger).
-- Improved overflow handling for excess windows (stable moves without cascading desktop creation).
-- Fixed wrong desktop targeting in forward only overflow and corrected per-desktop window counting.
-- Added mode-aware behavior (tiled / KWin / maximized / float) for window context-change reactions.
-- Fixed a bug where moving a window to a desktop in KWin mode could switch that desktop to floating.
-- Added OSD showing the active tiling mode on desktop or activity change.
-- Unified desktop/activity/monitor change handling through a shared context-change handler.
-- Fixed cross-monitor move retile race: target monitor now retiles immediately for each moved window
-  (no delayed tiling until last window).
-
----
-## 🚀 Whats' new in v.2.4
-- Persistent snapshots — saved layouts now **survive logout and reboot**.
-
-Enable with:
-```
-wget https://raw.githubusercontent.com/mtriam/KLeftHandTiler/main/kleft-save-install.sh
-chmod +x kleft-save-install.sh
-./kleft-save-install.sh
-```
-- Fix auto-float reclaim exceeding max tiled windows after window removal.
-- README improvements.
 
 ---
 
@@ -192,7 +172,7 @@ You can cycle through all modes using: <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd
 | Shortcut | Action |
 |----------|--------|
 | 2x <kbd>CapsLock</kbd> | Toggle floating for active window |
-| <kbd>Shift</kbd> + 2x <kbd>CapsLock</kbd><br>or<br><kbd>Meta</kbd> + <kbd>Shift</kbd> + <kbd>f</kbd> | Toggle Float All mode |
+| <kbd>Shift</kbd> + 2x <kbd>CapsLock</kbd><br>or<br><kbd>Meta</kbd> + <kbd>Shift</kbd> + <kbd>f</kbd> | Float All mode |
 | <kbd>Meta</kbd> + <kbd>Ctrl</kbd> + <kbd>Space</kbd> | Tile all currently floating windows |
 
 ### Snapshots

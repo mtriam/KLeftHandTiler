@@ -28,8 +28,8 @@ registerShortcut("Resize Right", "---Resize Right", "Ctrl+Shift+Right", () => re
 registerShortcut("Resize Up", "---Resize Up", "Ctrl+Shift+Up", () => resizeActiveWindowDirectional(0, 1));
 registerShortcut("Resize Down", "---Resize Down", "Ctrl+Shift+Down", () => resizeActiveWindowDirectional(0, -1));
 registerShortcut("CapsDoubleFloating", "---Double Caps → Toggle Floating", "CapsLock", handleDoubleTapCapsFloating);
-registerShortcut("ShiftCapsDoubleFloatAll","---Shift+Double Caps → Toggle Float All","Shift+CapsLock",handleDoubleTapShiftCapsFloatAll);
-registerShortcut("ToggleFloatAll","---Toggle tiling / floating mode","Meta+Shift+F",toggleFloatAll);
+registerShortcut("ShiftCapsDoubleFloatAll","---Shift+Double Caps → Enable Float All","Shift+CapsLock",handleDoubleTapShiftCapsFloatAll);
+registerShortcut("ToggleFloatAll","---Enable floating mode","Meta+Shift+F",() => toggleFloatAll(true));
 //registerShortcut("ToggleFloating", "---Toggle floating window", "Meta+Shift+Space", toggleFloatingActiveWindow);
 registerShortcut("TileAllFloating","---Tile all floating windows","Meta+Ctrl+Space",tileAllFloatingWindows);
 registerShortcut("SaveFloatingLayout1", "---Save layout slot 1", "Ctrl+Shift+F5", () => saveFloatingLayoutToSlot(0));
@@ -44,7 +44,7 @@ registerShortcut("KWinTileApply","Apply KWin Tiling","Ctrl+Alt+`",() => applyKWi
 // ──────────────────────────────────────────────────────────────
 // CONFIGURATION
 // ──────────────────────────────────────────────────────────────
-const DEBUG = true;  
+const DEBUG = false;  
 const LIVE_RESIZE_THROTTLE = 16;   // 50-80 is ideal
 const MAX_FIRST_ROW = 3;
 const RESIZE_STEP = 0.1;
@@ -100,6 +100,7 @@ const EDGE_TOLERANCE = GAP + 6;
 // GLOBAL STATE
 // =====================================================
 let scriptGeometryChange = false;
+let _kwinApplyIgnoreUntil = 0;
 let movingWindow = null;
 let movingStartCenter = null;
 let lastTapTime = 0;
@@ -251,12 +252,14 @@ function applyKWinTiling(options = {}) {
     const screen = normalizeScreenTarget(options.screen);
     const screenId = getScreenIdForTarget(screen);
     const desktop = options.desktop || workspace.currentDesktop;
+    const activeBefore = workspace.activeWindow;
 
     if (DEBUG) {
         print(`[KWIN APPLY] source=${options.source || "manual"} screen=${screenId} active=${getScreenIdForTarget(workspace.activeScreen)}`);
     }
 
     return withScreenContext(screen, () => {
+        _kwinApplyIgnoreUntil = Date.now() + 420;
         const state = getCurrentState();
         const wasFloating = state.allFloating;
 
@@ -350,9 +353,14 @@ function applyKWinTiling(options = {}) {
         });
 
         // =========================================================
-        // 🔥 SORT
+        // 🔥 SORT (preserve saved order per workspace first)
         // =========================================================
-        windows.sort((a, b) => (a.stackingOrder || 0) - (b.stackingOrder || 0));
+        const savedOrder = getLastTiledOrder().filter(w => w && !w.deleted && windows.includes(w));
+        const savedSet = new Set(savedOrder);
+        const rest = windows
+            .filter(w => !savedSet.has(w))
+            .sort((a, b) => (a.stackingOrder || 0) - (b.stackingOrder || 0));
+        windows = savedOrder.concat(rest);
 
         const count = Math.min(windows.length, leaves.length);
 
@@ -377,6 +385,14 @@ function applyKWinTiling(options = {}) {
             if (typeof autoFloating !== "undefined") {
                 autoFloating.delete(w);
             }
+        }
+
+        // Persist KWin tile assignment order for this workspace context.
+        setLastTiledOrder(windows.slice(0, count));
+
+        if (activeBefore && !activeBefore.deleted) {
+            workspace.activeWindow = activeBefore;
+            workspace.raiseWindow(activeBefore);
         }
 
         clearLayoutModel();
@@ -2044,12 +2060,14 @@ function windowOnCurrentDesktop(win, currentDeskId) {
     if (windowOnDesktop(win, targetRef)) return true;
 
     const desktopRefs = getWindowDesktopRefs(win);
+    const hasUsableRefAlias = desktopRefs.some(d => getDesktopAliases(d).size > 0);
+    const desktopAliasCount = win.desktop ? getDesktopAliases(win.desktop).size : 0;
     // Wayland/KWin can expose windows without explicit desktop assignment.
-    // Treat missing assignment as visible in current desktop context.
-    if (desktopRefs.length === 0 && !win.desktop && !win.onAllDesktops) {
+    // Treat missing or non-resolvable assignment as visible in current desktop context.
+    if (!win.onAllDesktops && ((!win.desktop && desktopRefs.length === 0) || (!hasUsableRefAlias && desktopAliasCount === 0))) {
         if (DEBUG) {
             const label = win.caption || win.resourceClass || win.resourceName || "?";
-            print(`[desktop-fallback] allowing "${label}" (no desktop assignment exposed)`);
+            print(`[desktop-fallback] allowing "${label}" (desktop assignment not resolvable)`);
         }
         return true;
     }
@@ -4123,6 +4141,8 @@ function rotateWindowsKeepFocus(direction = 1) {
                 }
             });
 
+                const assignedOrder = [];
+
                 // 🔥 ROTACJA PO KOLE (O)
                 for (let i = 0; i < count; i++) {
                     const srcIdx = getRotatedIndex(i, count, direction);
@@ -4134,6 +4154,11 @@ function rotateWindowsKeepFocus(direction = 1) {
 
                     workspace.activeWindow = w;
                     tile.manage(w);
+                    assignedOrder.push(w);
+                }
+
+                if (assignedOrder.length > 0) {
+                    setLastTiledOrder(assignedOrder);
                 }
 
                 if (activeBefore && !activeBefore.deleted) {
@@ -4434,7 +4459,12 @@ function trackWindowMinimizeRestore(c) {
                 _visibleCache = null;
 
                 if (canAutoRetile()) {
-                    scheduleRelayout();
+                    const state = getCurrentState();
+                    if (state && state.kwinTilingActive) {
+                        applyKWinTiling({ screen: getScreenForWindow(c), source: "windowRestore" });
+                    } else {
+                        scheduleRelayout();
+                    }
 
                     // 🔥 ADD — after restore
                     rebalanceOverflow();
@@ -4458,7 +4488,12 @@ function trackWindowMinimizeRestore(c) {
                 _visibleCache = null;
 
                 if (canAutoRetile()) {
-                    scheduleRelayout();
+                    const state = getCurrentState();
+                    if (state && state.kwinTilingActive) {
+                        applyKWinTiling({ screen: getScreenForWindow(c), source: "windowMinimize" });
+                    } else {
+                        scheduleRelayout();
+                    }
 
                     // 🔥 ADD — after minimize
                     rebalanceOverflow();
@@ -4472,8 +4507,148 @@ function trackWindowMinimizeRestore(c) {
     c._minimizeRestoreTracked = true;
 }
 
+function trackWindowMaximizeRestoreKWin(c) {
+    if (!c || !c.normalWindow || c.specialWindow || c.dock || c.skipTaskbar) return;
+    if (c._kwin_maxRestoreTracked) return;
+    const isKWinModeActiveForHandler = () => {
+        const state = getCurrentState();
+        if (state && state.kwinTilingActive) return true;
+        try {
+            const visible = getVisibleWindows();
+            return visible.some(w => w && !w.deleted && !w.minimized && !!w.tile);
+        } catch (e) {
+            return false;
+        }
+    };
+    const scheduleReapply = (source) => {
+        if (!c || c.deleted) return;
+        if (Date.now() < _kwinApplyIgnoreUntil) return;
+        if (!isKWinModeActiveForHandler()) return;
+
+        const now = Date.now();
+        if (c._kwinMaxRestoreCooldownUntil && now < c._kwinMaxRestoreCooldownUntil) {
+            return;
+        }
+        c._kwinMaxRestoreCooldownUntil = now + 320;
+
+        if (c._kwinReapplyTimer) {
+            c._kwinReapplyTimer.stop();
+        } else {
+            c._kwinReapplyTimer = new QTimer();
+            c._kwinReapplyTimer.singleShot = true;
+            c._kwinReapplyTimer.timeout.connect(() => {
+                if (!c || c.deleted) return;
+                const screenTarget = getScreenForWindow(c);
+                if (DEBUG) {
+                    const label = c.caption || c.resourceClass || c.resourceName || "?";
+                    print(`[kwin/maxRestore] "${label}" source=${source} -> reapply KWin tiling`);
+                }
+                applyKWinTiling({ screen: screenTarget, source: "maximizeRestore" });
+            });
+        }
+
+        c._kwinReapplyTimer.interval = 90;
+        c._kwinReapplyTimer.start();
+    };
+
+    c._kwinLastMaxMode = (typeof c.maximizeMode === "number") ? c.maximizeMode : 0;
+    c._kwinAwaitUnmaximizeRetile = false;
+
+    const isLikelyMaximizedGeometry = () => {
+        if (!c || c.deleted || !c.frameGeometry) return false;
+        const screenTarget = getScreenForWindow(c);
+        const desk = getCurrentDesktopForAPI();
+        const area = workspace.clientArea(KWin.FullScreenArea, screenTarget, desk);
+        if (!area) return false;
+
+        const g = c.frameGeometry;
+        const tol = 12;
+        return (
+            Math.abs(g.x - area.x) <= tol &&
+            Math.abs(g.y - area.y) <= tol &&
+            Math.abs(g.width - area.width) <= tol &&
+            Math.abs(g.height - area.height) <= tol
+        );
+    };
+
+    c._kwinLastLikelyMaxGeometry = !!isLikelyMaximizedGeometry();
+
+    if (typeof c.maximizeModeChanged === "function") {
+        c.maximizeModeChanged.connect(() => {
+            if (!c || c.deleted) return;
+            if (Date.now() < _kwinApplyIgnoreUntil) return;
+
+            const prev = (typeof c._kwinLastMaxMode === "number") ? c._kwinLastMaxMode : 0;
+            const curr = (typeof c.maximizeMode === "number") ? c.maximizeMode : 0;
+            c._kwinLastMaxMode = curr;
+
+            if (curr !== 0) {
+                c._kwinAwaitUnmaximizeRetile = true;
+                if (DEBUG) {
+                    const label = c.caption || c.resourceClass || c.resourceName || "?";
+                    print(`[kwin/maxRestore] "${label}" mark-await (maximizeMode=${curr})`);
+                }
+                return;
+            }
+
+            // Trigger only on real transition: maximized -> normal.
+            if (prev !== 0 && curr === 0) {
+                c._kwinAwaitUnmaximizeRetile = false;
+                scheduleReapply("maximizeModeChangedRestore");
+            }
+        });
+    }
+
+    if (typeof c.fullScreenChanged === "function") {
+        c.fullScreenChanged.connect(() => {
+            if (Date.now() < _kwinApplyIgnoreUntil) return;
+            // Trigger only on exiting fullscreen.
+            if (c && !c.deleted && !c.fullScreen) {
+                scheduleReapply("fullScreenChanged");
+            }
+        });
+    }
+
+    if (typeof c.frameGeometryChanged === "function") {
+        c.frameGeometryChanged.connect(() => {
+            if (!c || c.deleted) return;
+            if (Date.now() < _kwinApplyIgnoreUntil) return;
+            if (!isKWinModeActiveForHandler()) return;
+            if (c.fullScreen) return;
+
+            // Titlebar maximize on some setups doesn't expose maximizeMode reliably.
+            // Track transitions of fullscreen-like geometry and wait for a subsequent restore.
+            const likelyMax = isLikelyMaximizedGeometry();
+            const prevLikelyMax = !!c._kwinLastLikelyMaxGeometry;
+            c._kwinLastLikelyMaxGeometry = likelyMax;
+
+            if (likelyMax && !prevLikelyMax) {
+                c._kwinAwaitUnmaximizeRetile = true;
+                if (DEBUG) {
+                    const label = c.caption || c.resourceClass || c.resourceName || "?";
+                    print(`[kwin/maxRestore] "${label}" mark-await (geometry transition -> fullscreen-like)`);
+                }
+                return;
+            }
+
+            if (!likelyMax && c._kwinAwaitUnmaximizeRetile) {
+                c._kwinAwaitUnmaximizeRetile = false;
+                if (DEBUG) {
+                    const label = c.caption || c.resourceClass || c.resourceName || "?";
+                    print(`[kwin/maxRestore] "${label}" restore-detected (geometry transition <- fullscreen-like)`);
+                }
+                scheduleReapply("frameGeometryChangedTitlebarRestore");
+            }
+        });
+    }
+
+    c._kwin_maxRestoreTracked = true;
+}
+
 workspace.windowAdded.connect(trackWindowMinimizeRestore);
 workspace.windowList().forEach(trackWindowMinimizeRestore);
+workspace.windowAdded.connect(trackWindowMaximizeRestoreKWin);
+workspace.windowList().forEach(trackWindowMaximizeRestoreKWin);
 
 
 // ──────────────────────────────────────────────────────────────
@@ -4482,6 +4657,7 @@ workspace.windowList().forEach(trackWindowMinimizeRestore);
 function ToggleMaxOrMin() {
     const w = workspace.activeWindow;
     if (!w || !w.normalWindow || w.deleted || !w.managed) return;
+    const state = getCurrentState();
     const now = Date.now();
     const isDouble = (now - lastTapTime < DOUBLE_TAP_THRESHOLD);
     lastTapTime = now;
@@ -4492,6 +4668,22 @@ function ToggleMaxOrMin() {
         const isMaximized = (w.maximizeMode !== 0);
         if (isMaximized) {
             w.setMaximize(false, false);
+            if (state && state.kwinTilingActive) {
+                const screenTarget = getScreenForWindow(w);
+                const t = new QTimer();
+                t.singleShot = true;
+                t.interval = 110;
+                t.timeout.connect(() => {
+                    t.stop();
+                    if (!w || w.deleted) return;
+                    if (DEBUG) {
+                        const label = w.caption || w.resourceClass || w.resourceName || "?";
+                        print(`[kwin/maxRestore] "${label}" source=ToggleMaxOrMin -> reapply KWin tiling`);
+                    }
+                    applyKWinTiling({ screen: screenTarget, source: "maximizeRestoreShortcut" });
+                });
+                t.start();
+            }
         } else {
             w.setMaximize(true, true);
         }
@@ -4542,7 +4734,7 @@ function handleDoubleTapCapsFloating() {
 }
 
 // ──────────────────────────────────────────────────────────────
-// DOUBLE TAP SHIFT CAPS  TOGGLE FLOATING ALL
+// DOUBLE TAP SHIFT CAPS  ENABLE FLOATING ALL
 // ──────────────────────────────────────────────────────────────
 
 
@@ -4555,7 +4747,7 @@ function handleDoubleTapShiftCapsFloatAll() {
 
     if (now - handleDoubleTapShiftCapsFloatAll.lastPressTime <= DOUBLE_TAP_THRESHOLD) {
 
-        if (DEBUG) print("Shift+Caps double → toggleFloatAll");
+        if (DEBUG) print("Shift+Caps double → enable Float All");
 
         toggleFloatAll();
 
@@ -4603,6 +4795,20 @@ function smartTileHandler() {
         clearLayoutModel();
         forceRebuildModel();
         getCurrentState()._layoutDirty = true;
+        scheduleRelayout(0);
+        showOSDSafe("Tiling mode", "view-grid");
+        return;
+    }
+
+    // KWin tiling -> normal script tiling (single action, no layout cycling)
+    if (state.kwinTilingActive) {
+        disableKWinTiling();
+        state.kwinTilingActive = false;
+        state.allFloating = false;
+        state.maximizedAll = false;
+        clearLayoutModel();
+        forceRebuildModel();
+        state._layoutDirty = true;
         scheduleRelayout(0);
         showOSDSafe("Tiling mode", "view-grid");
         return;
@@ -5905,9 +6111,15 @@ function toggleFloatAll(force, options) {
     const floatingSet = getFloatingSet();
     const showOSD = !(options && options.showOSD === false);
 
+    // Default behavior: always enable floating mode when called without explicit force.
+    if (typeof force === "undefined") force = true;
+
     const floatAllActive = !!state.allFloating && !state.kwinTilingActive;
 
-    if (force === true && floatAllActive) return;
+    if (force === true && floatAllActive) {
+        if (showOSD) showOSDSafe("Floating mode", "window");
+        return;
+    }
     if (force === false && !floatAllActive) return;
 
     // === ENTER FLOAT ALL ===
@@ -7062,9 +7274,42 @@ function swapWindowInDirection(direction) {
     }
 
     const model = getLayoutModel();
+    const state = getCurrentState();
 
     const winTiled = isWindowTiled(win);
     const neighborTiled = isWindowTiled(neighbor);
+
+    // ==========================================================
+    // 🧩 TRYB 0: KWIN TILING (no internal model)
+    // ==========================================================
+    if (state && state.kwinTilingActive && win.tile && neighbor.tile) {
+        const winTile = win.tile;
+        const neighborTile = neighbor.tile;
+
+        try {
+            winTile.unmanage(win);
+        } catch (e) {}
+        try {
+            neighborTile.unmanage(neighbor);
+        } catch (e) {}
+
+        workspace.activeWindow = neighbor;
+        winTile.manage(neighbor);
+        workspace.activeWindow = win;
+        neighborTile.manage(win);
+
+        const order = getLastTiledOrder();
+        const i1 = order.indexOf(win);
+        const i2 = order.indexOf(neighbor);
+        if (i1 !== -1 && i2 !== -1) {
+            [order[i1], order[i2]] = [order[i2], order[i1]];
+            setLastTiledOrder(order);
+        }
+
+        workspace.raiseWindow(neighbor);
+        workspace.raiseWindow(win);
+        return;
+    }
 
     // ==========================================================
     // 🧩 TRYB 1: TILED + MODEL
@@ -7995,6 +8240,7 @@ workspace.windowAdded.connect(client => {
     trackMoveEvents(client);
     trackResizeEvents(client);
     trackWindowMinimizeRestore(client);
+    trackWindowMaximizeRestoreKWin(client);
     attachDesktopChangeHandler(client);
 
     withScreenContext(addedScreen, () => {
